@@ -18,3 +18,4 @@ elki.clustering.kmeans.SortMeans
 elki.clustering.kmeans.parallel.ParallelLloydKMeans
 elki.clustering.kmeans.YinYangKMeans
 elki.clustering.kmeans.XMeans
+elki.clustering.kmeans.LloydSphericalKMeans

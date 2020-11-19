@@ -22,6 +22,7 @@ package elki.data.projection.random;
 
 import elki.utilities.documentation.Reference;
 import elki.utilities.random.RandomFactory;
+
 import net.jafama.FastMath;
 
 /**

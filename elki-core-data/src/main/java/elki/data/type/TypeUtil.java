@@ -20,25 +20,10 @@
  */
 package elki.data.type;
 
-import elki.data.BitVector;
-import elki.data.ClassLabel;
-import elki.data.DoubleVector;
-import elki.data.ExternalID;
-import elki.data.FeatureVector;
-import elki.data.FloatVector;
-import elki.data.LabelList;
-import elki.data.NumberVector;
-import elki.data.SimpleClassLabel;
-import elki.data.SparseDoubleVector;
-import elki.data.SparseFloatVector;
-import elki.data.SparseNumberVector;
+import elki.data.*;
 import elki.data.spatial.PolygonsObject;
 import elki.data.spatial.SpatialComparable;
-import elki.database.ids.DBID;
-import elki.database.ids.DBIDFactory;
-import elki.database.ids.DBIDs;
-import elki.database.ids.DoubleDBIDList;
-import elki.database.ids.KNNList;
+import elki.database.ids.*;
 import elki.utilities.io.ByteArrayUtil;
 
 /**
