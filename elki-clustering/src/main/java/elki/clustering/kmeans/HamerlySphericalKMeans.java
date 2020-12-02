@@ -24,6 +24,7 @@ import java.util.Arrays;
 
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
+import elki.data.DoubleVector;
 import elki.data.NumberVector;
 import elki.data.model.KMeansModel;
 import elki.database.datastore.DataStoreFactory;
@@ -31,39 +32,19 @@ import elki.database.datastore.DataStoreUtil;
 import elki.database.datastore.WritableDoubleDataStore;
 import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
-import elki.distance.NumberVectorDistance;
+import elki.distance.UnitLengthEuclidianDistance;
 import elki.logging.Logging;
-import elki.utilities.documentation.Reference;
+import elki.math.DotProduct;
+import elki.math.linearalgebra.VMath;
 import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
-/**
- * Hamerly's fast k-means by exploiting the triangle inequality.
- * <p>
- * Reference:
- * <p>
- * G. Hamerly<br>
- * Making k-means even faster<br>
- * Proc. 2010 SIAM International Conference on Data Mining
- *
- * @author Erich Schubert
- * @since 0.7.0
- *
- * @navassoc - - - KMeansModel
- *
- * @param <V> vector datatype
- */
-@Reference(authors = "G. Hamerly", //
-    title = "Making k-means even faster", //
-    booktitle = "Proc. 2010 SIAM International Conference on Data Mining", //
-    url = "https://doi.org/10.1137/1.9781611972801.12", //
-    bibkey = "DBLP:conf/sdm/Hamerly10")
-public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
+public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   /**
    * The logger for this class.
    */
-  private static final Logging LOG = Logging.getLogger(HamerlyKMeans.class);
+  private static final Logging LOG = Logging.getLogger(HamerlySphericalKMeans.class);
 
   /**
    * Flag whether to compute the final variance statistic.
@@ -79,24 +60,23 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
    * @param initializer Initialization method
    * @param varstat Compute the variance statistic
    */
-  public HamerlyKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(distance, k, maxiter, initializer);
+  public HamerlySphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+    super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
     this.varstat = varstat;
   }
 
   @Override
   public Clustering<KMeansModel> run(Relation<V> relation) {
-    Instance instance = new Instance(relation, distance, initialMeans(relation));
+    Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
     return instance.buildResult(varstat, relation);
   }
 
   /**
    * Inner instance, storing state for a single data set.
-   *
-   * @author Erich Schubert
    */
   protected static class Instance extends AbstractKMeans.Instance {
+
     /**
      * Sum aggregate for the new mean.
      */
@@ -128,8 +108,8 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
      * @param relation Relation
      * @param means Initial means
      */
-    public Instance(Relation<? extends NumberVector> relation, NumberVectorDistance<?> df, double[][] means) {
-      super(relation, df, means);
+    public Instance(Relation<? extends NumberVector> relation, double[][] means) {
+      super(relation, new UnitLengthEuclidianDistance(), means);
       upper = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, Double.POSITIVE_INFINITY);
       lower = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, 0.);
       final int dim = means[0].length;
@@ -149,6 +129,32 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
       return assignToNearestCluster();
     }
 
+    protected double similarity(NumberVector vec1, double[] vec2) {
+      diststat++;
+      return DotProduct.dot(vec1, vec2);
+    }
+
+    protected double similarity(double[] vec1, double[] vec2) {
+      return similarity(new DoubleVector(vec1), vec2);
+    }
+
+    protected double distanceFromSimilarity(double sim) {
+      return FastMath.sqrt(1 - sim);
+    }
+
+    protected double similarityFromDistance(double dist) {
+      return 1 - dist * dist;
+    }
+
+    protected void computeSeparationSimilarity(double[][] cost) {
+      for(int i = 0; i < k; i++) {
+        double[] mi = means[i];
+        for(int j = 0; j < i; j++) {
+          cost[i][j] = cost[j][i] = similarity(mi, means[j]);
+        }
+      }
+    }
+
     /**
      * Perform initial cluster assignment.
      *
@@ -157,37 +163,37 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
     protected int initialAssignToNearestCluster() {
       assert k == means.length;
       double[][] cdist = new double[k][k];
-      computeSeparation(cdist);
+      computeSeparationSimilarity(cdist);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         NumberVector fv = relation.get(it);
         // Find closest center, and distance to two closest centers
-        double min1 = distance(fv, means[0]), min2 = distance(fv, means[1]);
-        int minIndex = 0;
-        if(min2 < min1) {
-          double tmp = min1;
-          min1 = min2;
-          min2 = tmp;
-          minIndex = 1;
+        double max1 = similarity(fv, means[0]), max2 = similarity(fv, means[1]);
+        int maxIndex = 0;
+        if(max2 > max1) {
+          double tmp = max1;
+          max1 = max2;
+          max2 = tmp;
+          maxIndex = 1;
         }
         for(int i = 2; i < k; i++) {
-          if(min2 > cdist[minIndex][i]) {
-            double dist = distance(fv, means[i]);
-            if(dist < min1) {
-              minIndex = i;
-              min2 = min1;
-              min1 = dist;
+          if(max2 < cdist[maxIndex][i]) {
+            double sim = similarity(fv, means[i]);
+            if(sim > max1) {
+              maxIndex = i;
+              max2 = max1;
+              max1 = sim;
             }
-            else if(dist < min2) {
-              min2 = dist;
+            else if(sim > max2) {
+              max2 = sim;
             }
           }
         }
         // Assign to nearest cluster.
-        clusters.get(minIndex).add(it);
-        assignment.putInt(it, minIndex);
-        plusEquals(sums[minIndex], fv);
-        upper.putDouble(it, isSquared ? FastMath.sqrt(min1) : min1);
-        lower.putDouble(it, isSquared ? FastMath.sqrt(min2) : min2);
+        clusters.get(maxIndex).add(it);
+        assignment.putInt(it, maxIndex);
+        plusEquals(sums[maxIndex], fv);
+        upper.putDouble(it, distanceFromSimilarity(max1));
+        lower.putDouble(it, distanceFromSimilarity(max2));
       }
       return relation.size();
     }
@@ -208,46 +214,45 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
         }
         // Update the upper bound
         NumberVector fv = relation.get(it);
-        double curd2 = distance(fv, means[cur]);
-        u = isSquared ? FastMath.sqrt(curd2) : curd2;
+        double curs2 = similarity(fv, means[cur]);
+        double curd2 = distanceFromSimilarity(curs2);
+        u = curd2;
         upper.putDouble(it, u);
         if(u <= z || u <= sa) {
           continue;
         }
         // Find closest center, and distance to two closest centers
-        double min1 = curd2, min2 = Double.POSITIVE_INFINITY;
-        int minIndex = cur;
+        double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
+        int maxIndex = cur;
         for(int i = 0; i < k; i++) {
           if(i == cur) {
             continue;
           }
-          double dist = distance(fv, means[i]);
-          if(dist < min1) {
-            minIndex = i;
-            min2 = min1;
-            min1 = dist;
+          double sim = similarity(fv, means[i]);
+          if(sim > max1) {
+            maxIndex = i;
+            max2 = max1;
+            max1 = sim;
           }
-          else if(dist < min2) {
-            min2 = dist;
+          else if(sim > max2) {
+            max2 = sim;
           }
         }
-        if(minIndex != cur) {
-          clusters.get(minIndex).add(it);
+        if(maxIndex != cur) {
+          clusters.get(maxIndex).add(it);
           clusters.get(cur).remove(it);
-          assignment.putInt(it, minIndex);
-          plusMinusEquals(sums[minIndex], sums[cur], fv);
+          assignment.putInt(it, maxIndex);
+          plusMinusEquals(sums[maxIndex], sums[cur], fv);
           ++changed;
-          upper.putDouble(it, min1 == curd2 ? u : isSquared ? FastMath.sqrt(min1) : min1);
+          upper.putDouble(it, max1 == curd2 ? u : distanceFromSimilarity(max1));
         }
-        lower.putDouble(it, min2 == curd2 ? u : isSquared ? FastMath.sqrt(min2) : min2);
+        lower.putDouble(it, max2 == curd2 ? u : distanceFromSimilarity(max2));
       }
       return changed;
     }
 
     /**
      * Recompute the separation of cluster means.
-     * <p>
-     * Used by Hamerly.
      *
      * @param means Means
      * @param sep Output array of separation (half-sqrt scaled)
@@ -255,18 +260,36 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
     protected void recomputeSeperation(double[][] means, double[] sep) {
       final int k = means.length;
       assert sep.length == k;
-      Arrays.fill(sep, Double.POSITIVE_INFINITY);
+      Arrays.fill(sep, Double.NEGATIVE_INFINITY);
+      // First find max Similarity
       for(int i = 1; i < k; i++) {
         double[] m1 = means[i];
         for(int j = 0; j < i; j++) {
-          double d = distance(m1, means[j]);
-          sep[i] = (d < sep[i]) ? d : sep[i];
-          sep[j] = (d < sep[j]) ? d : sep[j];
+          double curSim = similarity(m1, means[j]);
+          sep[i] = (curSim > sep[i]) ? curSim : sep[i];
+          sep[j] = (curSim > sep[j]) ? curSim : sep[j];
         }
       }
-      // We need half the Euclidean distance
+      // Now translate to Euclidian Distance
       for(int i = 0; i < k; i++) {
-        sep[i] = .5 * (isSquared ? FastMath.sqrt(sep[i]) : sep[i]);
+        sep[i] = .5 * distanceFromSimilarity(sep[i]);
+      }
+    }
+
+    /**
+     * Compute means from cluster sums by averaging.
+     * 
+     * @param dst Output means
+     * @param sums Input sums
+     */
+    protected void meansFromSums(double[][] dst, double[][] sums) {
+      for(int i = 0; i < k; i++) {
+        double length = .0;
+        for(double d : sums[i]) {
+          length += d * d;
+        }
+        length = FastMath.sqrt(length);
+        VMath.overwriteTimes(dst[i], sums[i], 1. / length);
       }
     }
 
@@ -297,8 +320,6 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
 
   /**
    * Parameterization class.
-   *
-   * @author Erich Schubert
    */
   public static class Par<V extends NumberVector> extends AbstractKMeans.Par<V> {
     @Override
@@ -313,8 +334,8 @@ public class HamerlyKMeans<V extends NumberVector> extends AbstractKMeans<V, KMe
     }
 
     @Override
-    public HamerlyKMeans<V> make() {
-      return new HamerlyKMeans<>(distance, k, maxiter, initializer, varstat);
+    public HamerlySphericalKMeans<V> make() {
+      return new HamerlySphericalKMeans<>(k, maxiter, initializer, varstat);
     }
   }
 }

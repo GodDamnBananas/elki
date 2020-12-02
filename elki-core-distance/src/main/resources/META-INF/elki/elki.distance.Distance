@@ -13,6 +13,7 @@ elki.distance.BrayCurtisDistance bray-curtis braycurtis sorensen dice sorensen-d
 elki.distance.CanberraDistance canberra
 elki.distance.WeightedCanberraDistance
 elki.distance.ClarkDistance
+elki.distance.UnitLengthEuclidianDistance
 # elki.distance.MahalanobisDistance
 # elki.distance.MatrixWeightedQuadraticDistance
 elki.distance.minkowski.WeightedLPNormDistance

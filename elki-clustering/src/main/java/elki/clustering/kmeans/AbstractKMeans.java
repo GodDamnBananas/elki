@@ -615,7 +615,7 @@ public abstract class AbstractKMeans<V extends NumberVector, M extends Model> im
      * @param sep Output array of separation
      * @param cdist Center-to-Center distances (half-sqrt scaled)
      */
-    protected void recomputeSeperation(double[] sep, double[][] cdist) {
+    protected void recomputeSeparation(double[] sep, double[][] cdist) {
       final int k = means.length;
       assert sep.length == k;
       Arrays.fill(sep, Double.POSITIVE_INFINITY);
@@ -650,7 +650,7 @@ public abstract class AbstractKMeans<V extends NumberVector, M extends Model> im
      * 
      * @param cost Pairwise separation output (as squared/4)
      */
-    protected void computeSquaredSeparation(double[][] cost) {
+    protected void computeSeparation(double[][] cost) {
       for(int i = 0; i < k; i++) {
         double[] mi = means[i];
         for(int j = 0; j < i; j++) {

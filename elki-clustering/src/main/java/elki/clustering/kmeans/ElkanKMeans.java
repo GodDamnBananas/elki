@@ -140,7 +140,7 @@ public class ElkanKMeans<V extends NumberVector> extends SimplifiedElkanKMeans<V
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
-      recomputeSeperation(sep, cdist); // #1
+      recomputeSeparation(sep, cdist); // #1
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int orig = assignment.intValue(it);

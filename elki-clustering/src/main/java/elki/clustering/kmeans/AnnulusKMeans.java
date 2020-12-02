@@ -131,7 +131,7 @@ public class AnnulusKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
     protected int initialAssignToNearestCluster() {
       assert k == means.length;
       double[][] sep2 = new double[k][k];
-      computeSquaredSeparation(sep2);
+      computeSeparation(sep2);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         NumberVector fv = relation.get(it);
         // Find closest center, and distance to two closest centers

@@ -31,6 +31,14 @@ public class DotProduct {
     return denseDot(v1, v2);
   }
 
+  // TODO: implement for actual number vector
+  public static double dot(NumberVector v1, NumberVector v2) {
+    if(v1 instanceof SparseNumberVector) {
+      return sparseDot((SparseNumberVector) v1, v2.toArray());
+    }
+    return denseDot(v1, v2.toArray());
+  }
+
   public static double sparseDot(SparseNumberVector v1, double[] v2) {
     final int dim2 = v2.length;
     double dot = 0.;

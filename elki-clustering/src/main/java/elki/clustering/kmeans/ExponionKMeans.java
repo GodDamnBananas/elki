@@ -116,28 +116,28 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
     @Override
     protected int initialAssignToNearestCluster() {
       assert k == means.length;
-      computeSquaredSeparation(cdist);
+      computeSeparation(cdist);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         NumberVector fv = relation.get(it);
-        // Find closest center, and distance to two closest centers:
-        double best = distance(fv, means[0]), sbest = distance(fv, means[1]);
+        // Find closest center, and distance to two closest centers
+        double min1 = distance(fv, means[0]), min2 = distance(fv, means[1]);
         int minIndex = 0;
-        if(sbest < best) {
-          double tmp = best;
-          best = sbest;
-          sbest = tmp;
+        if(min2 < min1) {
+          double tmp = min1;
+          min1 = min2;
+          min2 = tmp;
           minIndex = 1;
         }
-        for(int j = 2; j < k; j++) {
-          if(sbest > cdist[minIndex][j]) {
-            double dist = distance(fv, means[j]);
-            if(dist < best) {
-              minIndex = j;
-              sbest = best;
-              best = dist;
+        for(int i = 2; i < k; i++) {
+          if(min2 > cdist[minIndex][i]) {
+            double dist = distance(fv, means[i]);
+            if(dist < min1) {
+              minIndex = i;
+              min2 = min1;
+              min1 = dist;
             }
-            else if(dist < sbest) {
-              sbest = dist;
+            else if(dist < min2) {
+              min2 = dist;
             }
           }
         }
@@ -145,8 +145,8 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
         clusters.get(minIndex).add(it);
         assignment.putInt(it, minIndex);
         plusEquals(sums[minIndex], fv);
-        upper.putDouble(it, isSquared ? FastMath.sqrt(best) : best);
-        lower.putDouble(it, isSquared ? FastMath.sqrt(sbest) : sbest);
+        upper.putDouble(it, isSquared ? FastMath.sqrt(min1) : min1);
+        lower.putDouble(it, isSquared ? FastMath.sqrt(min2) : min2);
       }
       return relation.size();
     }
@@ -154,7 +154,7 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
-      recomputeSeperation(sep, cdist);
+      recomputeSeparation(sep, cdist);
       nearestMeans(cdist, cnum);
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {

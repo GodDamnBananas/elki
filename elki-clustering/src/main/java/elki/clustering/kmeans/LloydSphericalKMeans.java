@@ -34,6 +34,7 @@ import elki.database.ids.DBIDs;
 import elki.database.ids.ModifiableDBIDs;
 import elki.database.relation.Relation;
 import elki.distance.NumberVectorDistance;
+import elki.distance.UnitLengthEuclidianDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
 
@@ -42,8 +43,8 @@ import net.jafama.FastMath;
 public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   private static final Logging LOG = Logging.getLogger(LloydSphericalKMeans.class);
 
-  public LloydSphericalKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer) {
-    super(distance, k, maxiter, initializer);
+  public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer) {
+    super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
   }
 
   @Override
@@ -64,6 +65,11 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       super(relation, df, means);
     }
 
+    protected double similarity(NumberVector vec1, double[] means) {
+      diststat++;
+      return DotProduct.dot(vec1, means);
+    }
+
     /**
      * Assign each object to the nearest cluster.
      *
@@ -80,10 +86,10 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       }
       for(DBIDIter iditer = relation.iterDBIDs(); iditer.valid(); iditer.advance()) {
         NumberVector fv = relation.get(iditer);
-        double maxSim = DotProduct.dot(fv, means[0]);
+        double maxSim = similarity(fv, means[0]);
         int maxIndex = 0;
         for(int i = 1; i < k; i++) {
-          double sim = DotProduct.dot(fv, means[i]);
+          double sim = similarity(fv, means[i]);
           if(sim > maxSim) {
             maxIndex = i;
             maxSim = sim;
@@ -151,7 +157,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   public static class Par<V extends NumberVector> extends AbstractKMeans.Par<V> {
     @Override
     public LloydSphericalKMeans<V> make() {
-      return new LloydSphericalKMeans<V>(distance, k, maxiter, initializer);
+      return new LloydSphericalKMeans<V>(k, maxiter, initializer);
     }
   }
 }
