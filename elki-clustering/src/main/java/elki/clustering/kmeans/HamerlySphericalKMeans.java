@@ -244,9 +244,9 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
           assignment.putInt(it, maxIndex);
           plusMinusEquals(sums[maxIndex], sums[cur], fv);
           ++changed;
-          upper.putDouble(it, max1 == curd2 ? u : distanceFromSimilarity(max1));
+          upper.putDouble(it, max1 == curs2 ? u : distanceFromSimilarity(max1));
         }
-        lower.putDouble(it, max2 == curd2 ? u : distanceFromSimilarity(max2));
+        lower.putDouble(it, max2 == curs2 ? u : distanceFromSimilarity(max2));
       }
       return changed;
     }

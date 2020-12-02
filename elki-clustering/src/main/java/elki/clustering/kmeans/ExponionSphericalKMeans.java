@@ -34,7 +34,6 @@ import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
 import elki.utilities.documentation.Reference;
-import elki.utilities.random.FastNonThreadsafeRandom;
 
 import net.jafama.FastMath;
 
@@ -149,7 +148,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         final double sa = sep[cur];
         double u = upper.doubleValue(it);
         if(u <= z || u <= sa) {
-          continue;
+           continue;
         }
         // Update the upper bound
         NumberVector fv = relation.get(it);
@@ -158,7 +157,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         u = curd2;
         upper.putDouble(it, u);
         if(u <= z || u <= sa) {
-          continue;
+           continue;
         }
         // Find closest center, and distance to two closest centers
         double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
@@ -183,9 +182,9 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           assignment.putInt(it, maxIndex);
           plusMinusEquals(sums[maxIndex], sums[cur], fv);
           ++changed;
-          upper.putDouble(it, max1 == curd2 ? u : distanceFromSimilarity(max1));
+          upper.putDouble(it, max1 == curs2 ? u : distanceFromSimilarity(max1));
         }
-        lower.putDouble(it, max2 == curd2 ? u : distanceFromSimilarity(max2));
+        lower.putDouble(it, max2 == curs2 ? u : distanceFromSimilarity(max2));
       }
       return changed;
     }
@@ -210,7 +209,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
         ind++;
       }
-      return Math.min((int) FastMath.twoPow(ind), k - 1);
+      return Math.min((int) FastMath.twoPow(ind + 1) - 2, k - 1);
     }
 
     protected void partialSort() {
@@ -236,7 +235,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           amount = (amount - 2) / 2;
           right = (int) FastMath.twoPow(annulusInd + 1) + 1;
         }
-        
+
         max = maxExceptJ(cnum[j], csim[j], j, 0, 1);
         eRadius[j][0] = distanceFromSimilarity(max);
         System.out.println("e : " + Arrays.toString(eRadius[j]));
@@ -271,7 +270,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
 
         int pivotIndex = left + (int) (Math.random() * (right - left));
         double pivot = values[indices[pivotIndex]];
-        pivotIndex = partition(indices, values, left, right, pivot).index;
+        pivotIndex = partition(indices, values, left, right, pivot);
 
         if(pivotIndex == goalIndex) {
           return;
@@ -286,32 +285,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
     }
 
-    protected double halfSortAndReturnMin(int[] indices, double values[], int left, int right) {
-      int goalIndex = (left + right) / 2;
-      while(true) {
-        if(left >= right) {
-          return values[left];
-        }
-
-        int pivotIndex = left + (int) (Math.random() * (right - left));
-        double pivot = values[indices[pivotIndex]];
-        Tuple partitionResult = partition(indices, values, left, right, pivot);
-
-        pivotIndex = partitionResult.index;
-        if(pivotIndex == goalIndex) {
-          return partitionResult.maxValue;
-        }
-
-        if(pivotIndex < goalIndex) {
-          right = pivotIndex - 1;
-        }
-        else {
-          left = pivotIndex + 1;
-        }
-      }
-    }
-
-    private Tuple partition(int[] indices, double[] values, int left, int right, double pivot) {
+    private int partition(int[] indices, double[] values, int left, int right, double pivot) {
       double minVal = Math.min(values[indices[left]], values[indices[right]]);
       while(true) {
         while(values[indices[left]] > pivot) {
@@ -327,8 +301,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
         swap(indices, left, right);
       }
-      Tuple result = new Tuple(minVal, right);
-      return result;
+      return right;
     }
 
     /**
@@ -370,19 +343,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       int val1 = arr[ind1];
       arr[ind1] = arr[ind2];
       arr[ind2] = val1;
-    }
-
-    class Tuple {
-      public double maxValue;
-
-      public int index;
-
-      public Tuple(double maxValue, int index) {
-        super();
-        this.maxValue = maxValue;
-        this.index = index;
-      }
-
     }
 
     protected void recomputeSeparation() {
