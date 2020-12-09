@@ -139,7 +139,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       assert (k == means.length);
       recomputeSeparation();
       partialSort();
-      nearestMeans(cdist, cnum);
+      // nearestMeans(cdist, cnum);
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
@@ -361,7 +361,8 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           csim[i][j] = csim[j][i] = sim;
           double halfd = 0.5 * distanceFromSimilarity(sim);
           cdist[i][j] = cdist[j][i] = halfd;
-          sep[i] = sep[j] = (halfd < sep[i]) ? halfd : sep[i];
+          sep[i] = (halfd < sep[i]) ? halfd : sep[i];
+          sep[j] = (halfd < sep[j]) ? halfd : sep[j];
         }
       }
     }
