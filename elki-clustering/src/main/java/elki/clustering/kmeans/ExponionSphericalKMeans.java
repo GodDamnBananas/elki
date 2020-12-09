@@ -21,7 +21,6 @@
 package elki.clustering.kmeans;
 
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
@@ -130,7 +129,8 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           cnum[x][y] = y >= x ? y + 1 : y;
         }
       }
-      eRadius = new double[k][(int) Math.ceil((Math.log(k) / Math.log(2)))];
+      int radLen = k > 6 ? (int) Math.ceil((Math.log(k - 2) / Math.log(2)) - 1) : 1;
+      eRadius = new double[k][radLen];
       eMax = new int[k];
     }
 
@@ -144,26 +144,36 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
         // Compute the current bound:
-        final double z = lower.doubleValue(it);
+        final double lowerBound = lower.doubleValue(it);
         final double sa = sep[cur];
-        double u = upper.doubleValue(it);
-        if(u <= z || u <= sa) {
-           continue;
+        double upperBound = upper.doubleValue(it);
+        if(upperBound <= lowerBound) {
+          continue;
+        }
+        if(upperBound <= sa) {
+          continue;
         }
         // Update the upper bound
         NumberVector fv = relation.get(it);
         double curs2 = similarity(fv, means[cur]);
         double curd2 = distanceFromSimilarity(curs2);
-        u = curd2;
-        upper.putDouble(it, u);
-        if(u <= z || u <= sa) {
-           continue;
+        upperBound = curd2;
+        upper.putDouble(it, upperBound);
+        if(upperBound <= lowerBound) {
+          continue;
+        }
+        if(upperBound <= sa) {
+          continue;
         }
         // Find closest center, and distance to two closest centers
         double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 2 * (u + sa); // Our cdist are scaled 0.5
+        double r = 2 * (upperBound + sa); // Our cdist are scaled 0.5
+        System.out.println();
+        System.out.println(cur + " radius : " + r);
+        System.out.println(Arrays.toString(eRadius[cur]));
         int maxJ = findJ(it, r);
+        System.out.println("maxJ : " + maxJ);
         for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
           double sim = similarity(fv, means[c]);
@@ -182,10 +192,11 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           assignment.putInt(it, maxIndex);
           plusMinusEquals(sums[maxIndex], sums[cur], fv);
           ++changed;
-          upper.putDouble(it, max1 == curs2 ? u : distanceFromSimilarity(max1));
+          upper.putDouble(it, max1 == curs2 ? upperBound : distanceFromSimilarity(max1));
         }
-        lower.putDouble(it, max2 == curs2 ? u : distanceFromSimilarity(max2));
+        lower.putDouble(it, max2 == curs2 ? upperBound : distanceFromSimilarity(max2));
       }
+      // assert noAssignmentWrong();
       return changed;
     }
 
@@ -197,30 +208,30 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
      * @return
      */
     private int findJ(DBIDIter it, double r) {
-      if(r >= 1) {
-        return k - 1;
-      }
       int cur = assignment.intValue(it);
       double[] curE = eRadius[cur];
+      if(r >= curE[curE.length - 1]) {
+        return k - 1;
+      }
       int ind = 0;
       for(int f = 0; f < curE.length; f++) {
-        if(r <= curE[ind]) {
+        if(r <= curE[ind++]) {
           break;
         }
-        ind++;
       }
-      return Math.min((int) FastMath.twoPow(ind + 1) - 2, k - 1);
+      System.out.println("ind : " + ind);
+      return Math.min((int) FastMath.twoPow(ind + 1) + 2, k - 1);
     }
 
     protected void partialSort() {
-      System.err.println("********");
-      System.err.println("Partial Sort");
       for(int j = 0; j < k; j++) {
-        System.out.println(j + " : ");
+        if(k <= 2) {
+          eRadius[j][0] = cdist[j][cnum[j][0]];
+          return;
+        }
         int right = cnum[j].length - 1;
         int annulusInd = eRadius[j].length - 1;
         int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
-        System.out.println("ind : " + annulusInd);
         selectBiggest(cnum[j], csim[j], right, amount);
         double max = maxExceptJ(cnum[j], csim[j], j, amount, right);
         eRadius[j][annulusInd--] = distanceFromSimilarity(max);
@@ -228,7 +239,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         right = (int) FastMath.twoPow(annulusInd + 1) + 1;
 
         while(annulusInd-- >= 1) {
-          System.out.println("ind : " + annulusInd);
           selectBiggest(cnum[j], csim[j], right, amount);
           max = maxExceptJ(cnum[j], csim[j], j, amount, right);
           eRadius[j][annulusInd] = distanceFromSimilarity(max);
@@ -238,11 +248,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
 
         max = maxExceptJ(cnum[j], csim[j], j, 0, 1);
         eRadius[j][0] = distanceFromSimilarity(max);
-        System.out.println("e : " + Arrays.toString(eRadius[j]));
-        final int jFinal = j;
-        System.out.println("md: " + Arrays.stream(cnum[j]).boxed().map(jHat -> 2 * cdist[jFinal][jHat]).collect(Collectors.toList()).toString());
       }
-      System.err.println("********");
     }
 
     private double maxExceptJ(int[] indices, double[] values, int j, int left, int right) {
@@ -260,7 +266,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
     }
 
     private void selectBiggest(int[] indices, double values[], int right, int amount) {
-      System.out.println("select " + amount + " from " + (right + 1));
       int left = 0;
       int goalIndex = amount - 1;
       while(true) {

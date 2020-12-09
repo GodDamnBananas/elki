@@ -43,6 +43,11 @@ import net.jafama.FastMath;
 public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   private static final Logging LOG = Logging.getLogger(LloydSphericalKMeans.class);
 
+  /**
+   * Flag whether to compute the final variance statistic.
+   */
+  protected boolean varstat = true;
+
   public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer) {
     super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
   }
@@ -51,7 +56,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, distance, initialMeans(relation));
     instance.run(maxiter);
-    return instance.buildResult();
+    return instance.buildResult(varstat, relation);
   }
 
   @Override

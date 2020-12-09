@@ -279,7 +279,56 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           ++changed;
         }
       }
+      // assert noAssignmentWrong();
       return changed;
+    }
+
+    private boolean noAssignmentWrong() {
+      int changed = 0;
+      for(DBIDIter iditer = relation.iterDBIDs(); iditer.valid(); iditer.advance()) {
+        NumberVector fv = relation.get(iditer);
+        int cur = assignment.intValue(iditer);
+        double curSim = similarity(fv, means[cur]);
+        int maxIndex = cur;
+        double maxSim = curSim;
+        int maxIndex2 = 0;
+        double maxSim2 = 1;
+        for(int i = 0; i < k; i++) {
+          if(i == cur) {
+            continue;
+          }
+          double sim = similarity(fv, means[i]);
+          if(sim > maxSim) {
+            maxIndex2 = maxIndex;
+            maxIndex = i;
+            maxSim2 = maxSim;
+            maxSim = sim;
+          }
+          else if(sim > maxSim2) {
+            maxSim2 = sim;
+            maxIndex2 = k;
+          }
+        }
+        if(maxIndex != cur) {
+          changed++;
+
+          LOG.error(iditer.internalGetIndex() + " : ");
+          LOG.error("curDist (" + cur + ") : " + distanceFromSimilarity(curSim));
+          LOG.error("actDist (" + maxIndex + ") : " + distanceFromSimilarity(maxSim));
+          LOG.error("secDist (" + maxIndex2 + ") : " + distanceFromSimilarity(maxSim2));
+          double lowerVal = lower.get(iditer)[cur];
+          double lowerTrue = distanceFromSimilarity(maxSim2);
+          LOG.error("lower : " + lowerVal + " actually : " + lowerTrue + " isCorrect : " + (lowerVal <= lowerTrue));
+
+          double upperVal = upper.doubleValue(iditer);
+          double upperTrue = distanceFromSimilarity(maxSim);
+          LOG.error("upper : " + upperVal + " actually : " + upperTrue + " isCorrect : " + (upperVal >= upperTrue));
+          LOG.error("boundCheck : " + (upperVal <= lowerVal) + " actually : " + (upperTrue <= upperVal));
+        }
+      }
+      LOG.error("wrong assignments : " + changed);
+      // return changed == 0;
+      return true;
     }
 
     protected double similarity(NumberVector vec1, double[] vec2) {
