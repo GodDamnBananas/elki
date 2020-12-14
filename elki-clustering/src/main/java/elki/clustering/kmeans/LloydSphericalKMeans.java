@@ -37,6 +37,7 @@ import elki.distance.NumberVectorDistance;
 import elki.distance.UnitLengthEuclidianDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
+import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
@@ -48,8 +49,9 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    */
   protected boolean varstat = true;
 
-  public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer) {
+  public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
+    this.varstat = varstat;
   }
 
   @Override
@@ -161,8 +163,14 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    */
   public static class Par<V extends NumberVector> extends AbstractKMeans.Par<V> {
     @Override
+    public void configure(Parameterization config) {
+      super.configure(config);
+      super.getParameterVarstat(config);
+    }
+
+    @Override
     public LloydSphericalKMeans<V> make() {
-      return new LloydSphericalKMeans<V>(k, maxiter, initializer);
+      return new LloydSphericalKMeans<V>(k, maxiter, initializer, varstat);
     }
   }
 }

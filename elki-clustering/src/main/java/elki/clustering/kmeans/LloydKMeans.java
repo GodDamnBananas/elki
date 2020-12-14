@@ -30,6 +30,7 @@ import elki.logging.Logging;
 import elki.utilities.Alias;
 import elki.utilities.documentation.Reference;
 import elki.utilities.documentation.Title;
+import elki.utilities.optionhandling.parameterization.Parameterization;
 
 /**
  * The standard k-means algorithm, using bulk iterations and commonly attributed
@@ -72,6 +73,11 @@ public class LloydKMeans<V extends NumberVector> extends AbstractKMeans<V, KMean
   private static final Logging LOG = Logging.getLogger(LloydKMeans.class);
 
   /**
+   * Flag whether to compute the final variance statistic.
+   */
+  protected boolean varstat = false;
+
+  /**
    * Constructor.
    *
    * @param distance distance function
@@ -82,12 +88,16 @@ public class LloydKMeans<V extends NumberVector> extends AbstractKMeans<V, KMean
   public LloydKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer) {
     super(distance, k, maxiter, initializer);
   }
+  public LloydKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+    super(distance, k, maxiter, initializer);
+    this.varstat = varstat;
+  }
 
   @Override
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, distance, initialMeans(relation));
     instance.run(maxiter);
-    return instance.buildResult();
+    return instance.buildResult(true, relation);
   }
 
   /**
@@ -129,9 +139,16 @@ public class LloydKMeans<V extends NumberVector> extends AbstractKMeans<V, KMean
    * @author Erich Schubert
    */
   public static class Par<V extends NumberVector> extends AbstractKMeans.Par<V> {
+
+    @Override
+    public void configure(Parameterization config) {
+      super.configure(config);
+      super.getParameterVarstat(config);
+    }
+
     @Override
     public LloydKMeans<V> make() {
-      return new LloydKMeans<>(distance, k, maxiter, initializer);
+      return new LloydKMeans<>(distance, k, maxiter, initializer, varstat);
     }
   }
 }

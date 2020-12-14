@@ -33,6 +33,7 @@ import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
 import elki.utilities.documentation.Reference;
+import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
@@ -384,6 +385,12 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
    * @author Erich Schubert
    */
   public static class Par<V extends NumberVector> extends HamerlySphericalKMeans.Par<V> {
+    @Override
+    public void configure(Parameterization config) {
+      super.configure(config);
+      super.getParameterVarstat(config);
+    }
+
     @Override
     public ExponionSphericalKMeans<V> make() {
       return new ExponionSphericalKMeans<>(k, maxiter, initializer, varstat);
