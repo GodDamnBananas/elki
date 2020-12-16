@@ -89,7 +89,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    * @param varstat Compute the variance statistic
    */
   public ElkanSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
+    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -148,7 +148,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
      * @param means Initial means
      */
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
-      super(relation, new UnitLengthEuclidianDistance(), means);
+      super(relation, UnitLengthEuclidianDistance.STATIC, means);
       upper = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, Double.POSITIVE_INFINITY);
       lower = DataStoreUtil.makeStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, double[].class);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {

@@ -35,6 +35,26 @@ import net.jafama.FastMath;
  */
 public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
 
+  /**
+   * Static instance. Use this!
+   */
+  public static final UnitLengthEuclidianDistance STATIC = new UnitLengthEuclidianDistance();
+
+  /**
+   * Constructor - use {@link #STATIC} instead.
+   * 
+   * @deprecated Use static instance!
+   */
+  @Deprecated
+  public UnitLengthEuclidianDistance() {
+    super();
+  }
+
+  @Override
+  public boolean isMetric() {
+    return true;
+  }
+
   @Override
   public double distance(NumberVector o1, NumberVector o2) {
     return FastMath.sqrt(1 - DotProduct.dot(o1, o2));

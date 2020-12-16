@@ -61,7 +61,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
    * @param varstat Compute the variance statistic
    */
   public HamerlySphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
+    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -69,6 +69,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
+    instance.printAssignments();
     return instance.buildResult(varstat, relation);
   }
 
@@ -111,7 +112,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
      * @param means Initial means
      */
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
-      super(relation, new UnitLengthEuclidianDistance(), means);
+      super(relation, UnitLengthEuclidianDistance.STATIC, means);
       upper = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, Double.POSITIVE_INFINITY);
       lower = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, 0.);
       final int dim = means[0].length;
@@ -119,7 +120,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       newmeans = new double[k][dim];
       sep = new double[k];
       movedDistances = new double[k];
-      assert normalized();
+      // assert normalized();
     }
 
     private boolean normalized() {
@@ -149,6 +150,15 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       updateBounds(sep, movedDistance(means, newmeans, sep));
       copyMeans(newmeans, means);
       return assignToNearestCluster();
+    }
+    
+    void printAssignments(){
+//      System.out.print("[");
+//      for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
+//        NumberVector fv = relation.get(it);
+//        System.out.print(assignment.intValue(it) + ", ");
+//      }
+//      System.out.println("]");
     }
 
     /**
@@ -238,6 +248,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         upper.putDouble(it, distanceFromSimilarity(max1));
         lower.putDouble(it, distanceFromSimilarity(max2));
       }
+      printAssignments();
       return relation.size();
     }
 
@@ -246,10 +257,10 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       assert (k == means.length);
       recomputeSeperation(means, sep);
       int changed = 0;
-      int test1a = 0;
-      int test1b = 0;
-      int test2a = 0;
-      int test2b = 0;
+      // int test1a = 0;
+      // int test1b = 0;
+      // int test2a = 0;
+      // int test2b = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
         // Compute the current bound:
@@ -257,11 +268,11 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         final double lowerBound = lower.doubleValue(it);
         double upperBound = upper.doubleValue(it);
         if(upperBound <= lowerBound) {
-          test1a++;
+          // test1a++;
           continue;
         }
         if(upperBound <= sa) {
-          test1b++;
+          // test1b++;
           continue;
         }
         // Update the upper bound
@@ -271,11 +282,11 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         upperBound = curDist;
         upper.putDouble(it, upperBound);
         if(upperBound <= lowerBound) {
-          test2a++;
+          // test2a++;
           continue;
         }
         if(upperBound <= sa) {
-          test2b++;
+          // test2b++;
           continue;
         }
         // Find closest center, and distance to two closest centers
@@ -308,10 +319,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         // distanceFromSimilarity(max2));
       }
       // assert noAssignmentWrong();
-      System.out.println("test1a : " + test1a);
-      System.out.println("test1b : " + test1b);
-      System.out.println("test2a : " + test2a);
-      System.out.println("test2b : " + test2b);
+      printAssignments();
       return changed;
     }
 
@@ -404,7 +412,12 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
           length += d * d;
         }
         length = FastMath.sqrt(length);
-        VMath.overwriteTimes(dst[i], sums[i], 1. / length);
+        if(length == 0) {
+          System.arraycopy(sums[i], 0, dst[i], 0, sums[i].length);
+        }
+        else {
+          VMath.overwriteTimes(dst[i], sums[i], 1. / length);
+        }
       }
     }
 
@@ -415,7 +428,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
      * @param delta Maximum center movement.
      */
     protected void updateBounds(double[] move, double delta) {
-      LOG.error("maxDistance moved : " + delta);
+      // LOG.error("maxDistance moved : " + delta);
       delta = -delta;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         upper.increment(it, move[assignment.intValue(it)]);

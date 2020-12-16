@@ -42,7 +42,7 @@ public class DotProduct {
   public static double sparseDot(SparseNumberVector v1, double[] v2) {
     double dot = 0.;
     for(int i1 = v1.iter(); v1.iterValid(i1); i1 = v1.iterAdvance(i1)) {
-      dot += v1.iterDoubleValue(i1) * v2[i1];
+      dot += v1.iterDoubleValue(i1) * v2[v1.iterDim(i1)];
     }
     return dot;
   }

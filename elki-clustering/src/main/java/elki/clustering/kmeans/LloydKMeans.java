@@ -88,6 +88,7 @@ public class LloydKMeans<V extends NumberVector> extends AbstractKMeans<V, KMean
   public LloydKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer) {
     super(distance, k, maxiter, initializer);
   }
+
   public LloydKMeans(NumberVectorDistance<? super V> distance, int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(distance, k, maxiter, initializer);
     this.varstat = varstat;
@@ -118,8 +119,13 @@ public class LloydKMeans<V extends NumberVector> extends AbstractKMeans<V, KMean
 
     @Override
     protected int iterate(int iteration) {
+      long start = System.currentTimeMillis();
       means = iteration == 1 ? means : means(clusters, means, relation);
-      return assignToNearestCluster();
+      LOG.info("means : " + (System.currentTimeMillis() - start));
+      start = System.currentTimeMillis();
+      int assign = assignToNearestCluster();
+      LOG.info("assign : " + (System.currentTimeMillis() - start));
+      return assign;
     }
 
     @Override

@@ -50,7 +50,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   protected boolean varstat = true;
 
   public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(new UnitLengthEuclidianDistance(), k, maxiter, initializer);
+    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -67,6 +67,17 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   }
 
   protected static class Instance extends AbstractKMeans.Instance {
+
+    @Override
+    protected int iterate(int iteration) {
+      long start = System.currentTimeMillis();
+      means = iteration == 1 ? means : means(clusters, means, relation);
+      LOG.info("means : " + (System.currentTimeMillis() - start));
+      start = System.currentTimeMillis();
+      int assign = assignToNearestCluster();
+      LOG.info("assign : " + (System.currentTimeMillis() - start));
+      return assign;
+    }
 
     public Instance(Relation<? extends NumberVector> relation, NumberVectorDistance<?> df, double[][] means) {
       super(relation, df, means);
@@ -102,18 +113,13 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
             maxSim = sim;
           }
         }
+        varsum[maxIndex] += (1 - maxSim);
         clusters.get(maxIndex).add(iditer);
         if(assignment.putInt(iditer, maxIndex) != maxIndex) {
           ++changed;
         }
       }
       return changed;
-    }
-
-    @Override
-    protected int iterate(int iteration) {
-      means = iteration == 1 ? means : means(clusters, means, relation);
-      return assignToNearestCluster();
     }
 
     @Override
@@ -139,18 +145,19 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           newMeans[i] = means[i];
           continue;
         }
-        double[] mean = new double[means[i].length];
+        DBIDIter iter = list.iter();
+        double[] sum = relation.get(iter).toArray();
         // Add remaining vectors (sparse):
-        for(DBIDIter iter = list.iter(); iter.valid(); iter.advance()) {
-          plusEquals(mean, relation.get(iter));
+        for(iter.advance(); iter.valid(); iter.advance()) {
+          plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
         double length = .0;
-        for(double d : mean) {
+        for(final double d : sum) {
           length += d * d;
         }
         length = FastMath.sqrt(length);
-        newMeans[i] = timesEquals(mean, 1. / length);
+        newMeans[i] = timesEquals(sum, 1. / length);
       }
       return newMeans;
     }

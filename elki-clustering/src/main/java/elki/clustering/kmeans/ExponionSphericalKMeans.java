@@ -33,7 +33,6 @@ import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
 import elki.utilities.documentation.Reference;
-import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
@@ -83,6 +82,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
+    instance.printAssignments();
     return instance.buildResult(varstat, relation);
   }
 
@@ -170,11 +170,11 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
         double r = 2 * (upperBound + sa); // Our cdist are scaled 0.5
-        System.out.println();
-        System.out.println(cur + " radius : " + r);
-        System.out.println(Arrays.toString(eRadius[cur]));
+        // System.out.println();
+        // System.out.println(cur + " radius : " + r);
+        // System.out.println(Arrays.toString(eRadius[cur]));
         int maxJ = findJ(it, r);
-        System.out.println("maxJ : " + maxJ);
+        // System.out.println("maxJ : " + maxJ);
         for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
           double sim = similarity(fv, means[c]);
@@ -197,6 +197,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
         lower.putDouble(it, max2 == curs2 ? upperBound : distanceFromSimilarity(max2));
       }
+      printAssignments();
       // assert noAssignmentWrong();
       return changed;
     }
@@ -220,7 +221,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           break;
         }
       }
-      System.out.println("ind : " + ind);
+      // System.out.println("ind : " + ind);
       return Math.min((int) FastMath.twoPow(ind + 1) + 2, k - 1);
     }
 
@@ -275,8 +276,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
 
         int pivotIndex = left + (int) (Math.random() * (right - left));
-        double pivot = values[indices[pivotIndex]];
-        pivotIndex = partition(indices, values, left, right, pivot);
+        pivotIndex = partition(indices, values, left, right, pivotIndex);
 
         if(pivotIndex == goalIndex) {
           return;
@@ -291,24 +291,75 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
     }
 
-    private int partition(int[] indices, double[] values, int left, int right, double pivot) {
-      double minVal = Math.min(values[indices[left]], values[indices[right]]);
-      while(true) {
-        while(values[indices[left]] > pivot) {
-          minVal = Math.min(minVal, values[left]);
-          left++;
+    /**
+     * Partition by the Lomutu partition scheme
+     * 
+     * @param indices
+     * @param values
+     * @param left
+     * @param right
+     * @param pivotIndex
+     * @return
+     */
+    private int partition(int[] indices, double[] values, int left, int right, int pivotIndex) {
+      double pivotValue = values[indices[pivotIndex]];
+      swap(indices, pivotIndex, right);
+      int storeIndex = left;
+      for(int i = left; i < right; i++) {
+        if(values[indices[i]] < pivotValue) {
+          swap(indices, storeIndex++, i);
         }
-        while(values[indices[right]] < pivot) {
-          minVal = Math.min(minVal, values[right]);
-          right--;
-        }
-        if(left >= right) {
-          break;
-        }
-        swap(indices, left, right);
       }
-      return right;
+      swap(indices, right, storeIndex);
+      return -1;
     }
+
+    // private void selectBiggest(int[] indices, double values[], int right, int
+    // amount) {
+    // int left = 0;
+    // int goalIndex = amount - 1;
+    // while(true) {
+    // if(left >= right) {
+    // return;
+    // }
+    //
+    // int pivotIndex = left + (int) (Math.random() * (right - left));
+    // double pivot = values[indices[pivotIndex]];
+    // pivotIndex = partition(indices, values, left, right, pivot);
+    //
+    // if(pivotIndex == goalIndex) {
+    // return;
+    // }
+    //
+    // if(pivotIndex < goalIndex) {
+    // right = pivotIndex - 1;
+    // }
+    // else {
+    // left = pivotIndex + 1;
+    // }
+    // }
+    // }
+    // private int partition(int[] indices, double[] values, int left, int
+    // right, double pivot) {
+    // double minVal = Math.min(values[indices[left]], values[indices[right]]);
+    // while(true) {
+    // double lVal = values[indices[left]];
+    // double rVal = values[indices[right]];
+    // while(values[indices[left]] > pivot) {
+    // minVal = Math.min(minVal, values[left]);
+    // left++;
+    // }
+    // while(values[indices[right]] < pivot) {
+    // minVal = Math.min(minVal, values[right]);
+    // right--;
+    // }
+    // if(left >= right) {
+    // break;
+    // }
+    // swap(indices, left, right);
+    // }
+    // return right;
+    // }
 
     /**
      * Sorts nums so that all indices j' in nums with values[j'] == 0 are at the
@@ -385,11 +436,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
    * @author Erich Schubert
    */
   public static class Par<V extends NumberVector> extends HamerlySphericalKMeans.Par<V> {
-    @Override
-    public void configure(Parameterization config) {
-      super.configure(config);
-      super.getParameterVarstat(config);
-    }
 
     @Override
     public ExponionSphericalKMeans<V> make() {
