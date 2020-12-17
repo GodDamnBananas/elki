@@ -151,14 +151,14 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       copyMeans(newmeans, means);
       return assignToNearestCluster();
     }
-    
-    void printAssignments(){
-//      System.out.print("[");
-//      for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
-//        NumberVector fv = relation.get(it);
-//        System.out.print(assignment.intValue(it) + ", ");
-//      }
-//      System.out.println("]");
+
+    void printAssignments() {
+      // System.out.print("[");
+      // for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
+      // NumberVector fv = relation.get(it);
+      // System.out.print(assignment.intValue(it) + ", ");
+      // }
+      // System.out.println("]");
     }
 
     /**
@@ -319,13 +319,12 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         // distanceFromSimilarity(max2));
       }
       // assert noAssignmentWrong();
-      printAssignments();
+//      printAssignments();
       return changed;
     }
 
     protected boolean noAssignmentWrong() {
       int changed = 0;
-      LOG.error(Arrays.toString(movedDistances));
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         NumberVector fv = relation.get(it);
         int cur = assignment.intValue(it);
