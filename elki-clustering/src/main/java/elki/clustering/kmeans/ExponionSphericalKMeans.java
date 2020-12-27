@@ -311,7 +311,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
       }
       swap(indices, right, storeIndex);
-      return -1;
+      return -storeIndex;
     }
 
     // private void selectBiggest(int[] indices, double values[], int right, int

@@ -47,6 +47,7 @@ elki.clustering.kmeans.XMeans
 elki.clustering.kmeans.LloydSphericalKMeans
 elki.clustering.kmeans.ElkanSphericalKMeans
 elki.clustering.kmeans.HamerlySphericalKMeans
+elki.clustering.kmeans.HamerlySphericalKMeans2
 elki.clustering.kmeans.ExponionSphericalKMeans
 elki.clustering.kmeans.ExponionNaiveSphericalKMeans
 elki.clustering.kmedoids.FasterPAM

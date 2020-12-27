@@ -32,7 +32,6 @@ import elki.database.datastore.WritableIntegerDataStore;
 import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
-import elki.utilities.datastructures.arrays.DoubleIntegerArrayQuickSort;
 import elki.utilities.documentation.Reference;
 
 import net.jafama.FastMath;
@@ -97,6 +96,11 @@ public class ExponionNaiveSphericalKMeans<V extends NumberVector> extends Hamerl
     WritableIntegerDataStore second;
 
     /**
+     * Cluster center distances.
+     */
+    double[][] cdist;
+
+    /**
      * Cluster center similarities
      */
     double[][] csim = new double[k][k];
@@ -106,22 +110,36 @@ public class ExponionNaiveSphericalKMeans<V extends NumberVector> extends Hamerl
      */
     int[][] cnum;
 
+    /**
+     * outer radius of layer
+     */
+    double[][] eRadius;
+
+    /**
+     * first index in cnum where similarity is 0
+     */
+    int[] eMax;
+
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
       super(relation, means);
       second = DataStoreUtil.makeIntegerStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, -1);
+      cdist = new double[k][k];
       cnum = new int[k][k - 1];
       for(int x = 0; x < k; x++) {
         for(int y = 0; y < k - 1; y++) {
           cnum[x][y] = y >= x ? y + 1 : y;
         }
       }
+      int radLen = k > 6 ? (int) Math.ceil((Math.log(k - 2) / Math.log(2)) - 1) : 1;
+      eRadius = new double[k][radLen];
+      eMax = new int[k];
     }
 
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
       recomputeSeparation();
-      sort();
+      partialSort();
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
@@ -150,15 +168,15 @@ public class ExponionNaiveSphericalKMeans<V extends NumberVector> extends Hamerl
         // Find closest center, and distance to two closest centers
         double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 1 - FastMath.pow2(2 * (upperBound + sa));
+        // double r = 1 - FastMath.pow2(2 * (upperBound + sa)); // Our cdist are
+        double r = curs2; // scaled 0.5
+        // System.out.println();
+        // System.out.println(cur + " radius : " + r);
+        // System.out.println(Arrays.toString(eRadius[cur]));
+        int maxJ = findJ(it, r);
         // System.out.println("maxJ : " + maxJ);
-        for(int i = 0; i < k - 1; i++) {
+        for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
-          if(csim[cur][c] < r) {
-            int pruned = k - 1 - i;
-            System.out.println("pruned " + pruned);
-            break;
-          }
           double sim = similarity(fv, means[c]);
           if(sim > max1) {
             maxIndex = c;
@@ -184,17 +202,104 @@ public class ExponionNaiveSphericalKMeans<V extends NumberVector> extends Hamerl
       return changed;
     }
 
-    protected void sort() {
-      final int k = csim.length;
-      double[] buf = new double[k - 1];
-      for(int i = 0; i < k; i++) {
-        System.arraycopy(csim[i], 0, buf, 0, i);
-        System.arraycopy(csim[i], i + 1, buf, i, k - i - 1);
-        for(int j = 0; j < buf.length; j++) {
-          cnum[i][j] = j < i ? j : (j + 1);
-        }
-        DoubleIntegerArrayQuickSort.sortReverse(buf, cnum[i], k - 1);
+    /**
+     * Finds the index of the first
+     * 
+     * @param it
+     * @param r
+     * @return
+     */
+    private int findJ(DBIDIter it, double r) {
+      int cur = assignment.intValue(it);
+      double[] curE = eRadius[cur];
+      if(r <= curE[curE.length - 1]) {
+        return k - 1;
       }
+      int ind = 0;
+      for(int f = 0; f < curE.length; f++) {
+        if(r >= curE[ind++]) {
+          break;
+        }
+      }
+      // System.out.println("ind : " + ind);
+      return Math.min((int) FastMath.twoPow(ind + 1) + 2, k - 1);
+    }
+
+    protected void partialSort() {
+      for(int j = 0; j < k; j++) {
+        if(k <= 2) {
+          eRadius[j][0] = cdist[j][cnum[j][0]];
+          return;
+        }
+        int right = cnum[j].length - 1;
+        int annulusInd = eRadius[j].length - 1;
+        int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
+        selectSmallest(cnum[j], csim[j], right, amount);
+        eRadius[j][annulusInd--] = maxExceptJ(cnum[j], csim[j], j, amount, right);
+        amount = (amount - 2) / 2;
+        right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+
+        while(annulusInd-- >= 1) {
+          selectSmallest(cnum[j], csim[j], right, amount);
+          eRadius[j][annulusInd] = maxExceptJ(cnum[j], csim[j], j, amount, right);
+          amount = (amount - 2) / 2;
+          right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+        }
+
+        eRadius[j][0] = maxExceptJ(cnum[j], csim[j], j, 0, 1);
+      }
+    }
+
+    private double maxExceptJ(int[] indices, double[] values, int j, int left, int right) {
+      double max = values[indices[left]];
+      for(int i = left + 1; i <= right; i++) {
+        int index = indices[i];
+        if(index == j) {
+          continue;
+        }
+        if(values[index] > max) {
+          max = values[index];
+        }
+      }
+      // return max;
+      return 1 + FastMath.pow2((sep[j] - distanceFromSimilarity(max)) / 2);
+    }
+
+    private void selectSmallest(int[] indices, double values[], int right, int amount) {
+      int left = 0;
+      int goalIndex = amount - 1;
+      while(true) {
+        if(left >= right) {
+          return;
+        }
+
+        int pivotIndex = left + (int) (Math.random() * (right - left));
+        pivotIndex = partition(indices, values, left, right, pivotIndex);
+
+        if(pivotIndex == goalIndex) {
+          return;
+        }
+
+        if(pivotIndex < goalIndex) {
+          right = pivotIndex - 1;
+        }
+        else {
+          left = pivotIndex + 1;
+        }
+      }
+    }
+
+    private int partition(int[] indices, double[] values, int left, int right, int pivotIndex) {
+      double pivotValue = values[indices[pivotIndex]];
+      swap(indices, pivotIndex, right);
+      int storeIndex = left;
+      for(int i = left; i < right; i++) {
+        if(values[indices[i]] > pivotValue) {
+          swap(indices, storeIndex++, i);
+        }
+      }
+      swap(indices, right, storeIndex);
+      return -storeIndex;
     }
 
     /**
@@ -241,18 +346,17 @@ public class ExponionNaiveSphericalKMeans<V extends NumberVector> extends Hamerl
     protected void recomputeSeparation() {
       final int k = means.length;
       assert sep.length == k;
-      Arrays.fill(sep, Double.NEGATIVE_INFINITY);
+      Arrays.fill(sep, Double.POSITIVE_INFINITY);
       for(int i = 1; i < k; i++) {
         double[] mi = means[i];
         for(int j = 0; j < i; j++) {
           double sim = similarity(mi, means[j]);
           csim[i][j] = csim[j][i] = sim;
-          sep[i] = (sim > sep[i]) ? sim : sep[i];
-          sep[j] = (sim > sep[j]) ? sim : sep[j];
+          double halfd = 0.5 * distanceFromSimilarity(sim);
+          cdist[i][j] = cdist[j][i] = halfd;
+          sep[i] = (halfd < sep[i]) ? halfd : sep[i];
+          sep[j] = (halfd < sep[j]) ? halfd : sep[j];
         }
-      }
-      for(int i = 0; i < k; i++) {
-        sep[i] = 0.5 * distanceFromSimilarity(sep[i]);
       }
     }
 
