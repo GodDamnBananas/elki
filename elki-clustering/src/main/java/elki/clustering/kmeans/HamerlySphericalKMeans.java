@@ -248,7 +248,6 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         upper.putDouble(it, distanceFromSimilarity(max1));
         lower.putDouble(it, distanceFromSimilarity(max2));
       }
-      printAssignments();
       return relation.size();
     }
 

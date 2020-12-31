@@ -70,7 +70,6 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
-    instance.printAssignments();
     return instance.buildResult(varstat, relation);
   }
 
@@ -151,15 +150,6 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
       updateBounds(sep, movedDistance(means, newmeans, sep));
       copyMeans(newmeans, means);
       return assignToNearestCluster();
-    }
-
-    void printAssignments() {
-      // System.out.print("[");
-      // for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
-      // NumberVector fv = relation.get(it);
-      // System.out.print(assignment.intValue(it) + ", ");
-      // }
-      // System.out.println("]");
     }
 
     /**
@@ -262,11 +252,16 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
         final int cur = assignment.intValue(it);
         // Compute the current bound:
         final double sa = sep[cur];
-        final double lowerBound = similarityFromDistance(lower.doubleValue(it));
-        double upperBound = similarityFromDistance(upper.doubleValue(it));
-        if(upperBound >= lowerBound || upperBound >= sa) {
+        double lowerBound = lower.doubleValue(it);
+        double upperBound = upper.doubleValue(it);
+        if(upperBound <= lowerBound) {
           continue;
         }
+        upperBound = similarityFromDistance(upperBound);
+        if(upperBound >= sa) {
+          continue;
+        }
+        lowerBound = similarityFromDistance(lowerBound);
         // Update the upper bound
         NumberVector fv = relation.get(it);
         upperBound = similarity(fv, means[cur]);
