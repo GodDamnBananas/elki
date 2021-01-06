@@ -56,7 +56,7 @@ import net.jafama.FastMath;
  * Using the triangle inequality to accelerate k-means<br>
  * Proc. 20th International Conference on Machine Learning, ICML 2003
  *
- * @author Alexander Voﬂ
+ * @author Erich Schubert
  * @since 0.7.0
  *
  * @navassoc - - - KMeansModel
@@ -68,11 +68,11 @@ import net.jafama.FastMath;
     booktitle = "Proc. 20th International Conference on Machine Learning, ICML 2003", //
     url = "http://www.aaai.org/Library/ICML/2003/icml03-022.php", //
     bibkey = "DBLP:conf/icml/Elkan03")
-public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
+public class ElkanSphericalKMeans2<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   /**
    * The logger for this class.
    */
-  private static final Logging LOG = Logging.getLogger(ElkanSphericalKMeans.class);
+  private static final Logging LOG = Logging.getLogger(ElkanSphericalKMeans2.class);
 
   /**
    * Flag whether to compute the final variance statistic.
@@ -88,7 +88,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    * @param initializer Initialization method
    * @param varstat Compute the variance statistic
    */
-  public ElkanSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+  public ElkanSphericalKMeans2(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
@@ -103,7 +103,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   /**
    * Inner instance, storing state for a single data set.
    *
-   * @author Erich Schubert
+   * @author Alexander Voﬂ
    */
   protected static class Instance extends AbstractKMeans.Instance {
     /**
@@ -235,9 +235,8 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         if(u <= sep[orig]) {
           continue;
         }
-        boolean recomputeSimilarity = true; // Elkan's r(x)
-        boolean recomputeDistance = true;
-        double curSim = .0;
+        boolean recomputeDistance = true; // Elkan's r(x)
+        double curSim = 0.;
         NumberVector fv = relation.get(it);
         double[] l = lower.get(it);
         // Check all (other) means:
@@ -246,19 +245,13 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           if(orig == j || u <= l[j] || u <= cdist[cur][j]) {
             continue; // Condition #3 i-iii not satisfied
           }
-          if(recomputeSimilarity) {
+          if(recomputeDistance) {
             curSim = similarity(fv, means[cur]);
-            recomputeSimilarity = false; // Once only
-          }
-          if(curSim >= csim[cur][j]) {
-            continue;
-          }
-          if(recomputeDistance) { // Need to update bound? #3a
             u = distanceFromSimilarity(curSim);
             upper.putDouble(it, u);
             recomputeDistance = false; // Once only
           }
-          if(u <= l[j]) { // #3b
+          if(curSim >= csim[cur][j] || u <= l[j]) {
             continue;
           }
           double sim = similarity(fv, means[j]);
@@ -377,7 +370,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         double[] mi = means[i];
         for(int j = 0; j < i; j++) {
           double sim = similarity(mi, means[j]);
-          csim[i][j] = csim[j][i] = (sim + 3) * 1. / 4.;
+          csim[i][j] = csim[j][i] = (similarity(mi, means[j]) + 3) * 1. / 4.;
           double halfd = 0.5 * distanceFromSimilarity(sim);
           cdist[i][j] = cdist[j][i] = halfd;
           sep[i] = (halfd < sep[i]) ? halfd : sep[i];
@@ -412,8 +405,8 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     }
 
     @Override
-    public ElkanSphericalKMeans<V> make() {
-      return new ElkanSphericalKMeans<>(k, maxiter, initializer, varstat);
+    public ElkanSphericalKMeans2<V> make() {
+      return new ElkanSphericalKMeans2<>(k, maxiter, initializer, varstat);
     }
   }
 }

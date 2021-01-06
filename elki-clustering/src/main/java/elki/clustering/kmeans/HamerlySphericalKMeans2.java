@@ -91,7 +91,12 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
     /**
      * Separation of means / distance moved.
      */
-    double[] sep;
+    double[] sepDist;
+
+    /**
+     * Separation of means / distance moved.
+     */
+    double[] sepSim;
 
     double[] movedDistances;
 
@@ -118,7 +123,8 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
       final int dim = means[0].length;
       sums = new double[k][dim];
       newmeans = new double[k][dim];
-      sep = new double[k];
+      sepDist = new double[k];
+      sepSim = new double[k];
       movedDistances = new double[k];
       // assert normalized();
     }
@@ -147,7 +153,7 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
         return initialAssignToNearestCluster();
       }
       meansFromSums(newmeans, sums);
-      updateBounds(sep, movedDistance(means, newmeans, sep));
+      updateBounds(sepDist, movedDistance(means, newmeans, sepDist));
       copyMeans(newmeans, means);
       return assignToNearestCluster();
     }
@@ -246,26 +252,22 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
-      recomputeSeperation(means, sep);
+      recomputeSeparation(means, sepDist, sepSim);
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
         // Compute the current bound:
-        final double sa = sep[cur];
+        final double saDist = sepDist[cur];
+        final double saSim = sepSim[cur];
         double lowerBound = lower.doubleValue(it);
         double upperBound = upper.doubleValue(it);
-        if(upperBound <= lowerBound) {
+        if(upperBound <= lowerBound || upperBound <= saDist) {
           continue;
         }
-        upperBound = similarityFromDistance(upperBound);
-        if(upperBound >= sa) {
-          continue;
-        }
-        lowerBound = similarityFromDistance(lowerBound);
         // Update the upper bound
         NumberVector fv = relation.get(it);
         upperBound = similarity(fv, means[cur]);
-        if(upperBound >= lowerBound || upperBound >= sa) {
+        if(upperBound >= saSim || upperBound >= similarityFromDistance(lowerBound)) {
           upper.putDouble(it, distanceFromSimilarity(upperBound));
           continue;
         }
@@ -357,24 +359,25 @@ public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMe
      * Recompute the separation of cluster means.
      *
      * @param means Means
-     * @param sep Output array of separation (half-sqrt scaled)
+     * @param sepDist Output array of separation (half-sqrt scaled)
      */
-    protected void recomputeSeperation(double[][] means, double[] sep) {
+    protected void recomputeSeparation(double[][] means, double[] sepDist, double[] sepSim) {
       final int k = means.length;
-      assert sep.length == k;
-      Arrays.fill(sep, Double.NEGATIVE_INFINITY);
+      assert sepDist.length == k;
+      Arrays.fill(sepDist, Double.NEGATIVE_INFINITY);
       // First find max Similarity
       for(int i = 1; i < k; i++) {
         double[] m1 = means[i];
         for(int j = 0; j < i; j++) {
           double curSim = similarity(m1, means[j]);
-          sep[i] = (curSim > sep[i]) ? curSim : sep[i];
-          sep[j] = (curSim > sep[j]) ? curSim : sep[j];
+          sepSim[i] = (curSim > sepSim[i]) ? curSim : sepSim[i];
+          sepSim[j] = (curSim > sepSim[j]) ? curSim : sepSim[j];
         }
       }
       // Now translate to 1-(.5*sqrt(1-a))^2
       for(int i = 0; i < k; i++) {
-        sep[i] = (sep[i] + 3) * .25;
+        sepDist[i] = .5 * distanceFromSimilarity(sepSim[i]);
+        sepSim[i] = (sepSim[i] + 3) * .25;
       }
     }
 

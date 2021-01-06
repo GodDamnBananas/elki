@@ -56,7 +56,7 @@ import net.jafama.FastMath;
  * Using the triangle inequality to accelerate k-means<br>
  * Proc. 20th International Conference on Machine Learning, ICML 2003
  *
- * @author Alexander Voﬂ
+ * @author Erich Schubert
  * @since 0.7.0
  *
  * @navassoc - - - KMeansModel
@@ -68,11 +68,11 @@ import net.jafama.FastMath;
     booktitle = "Proc. 20th International Conference on Machine Learning, ICML 2003", //
     url = "http://www.aaai.org/Library/ICML/2003/icml03-022.php", //
     bibkey = "DBLP:conf/icml/Elkan03")
-public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
+public class ElkanSphericalKMeans3<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   /**
    * The logger for this class.
    */
-  private static final Logging LOG = Logging.getLogger(ElkanSphericalKMeans.class);
+  private static final Logging LOG = Logging.getLogger(ElkanSphericalKMeans3.class);
 
   /**
    * Flag whether to compute the final variance statistic.
@@ -88,7 +88,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    * @param initializer Initialization method
    * @param varstat Compute the variance statistic
    */
-  public ElkanSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+  public ElkanSphericalKMeans3(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
@@ -132,11 +132,6 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     double[] sep = new double[k];
 
     /**
-     * Cluster center distances
-     */
-    double[][] cdist = new double[k][k];
-
-    /**
      * Cluster center similarities
      */
     double[][] csim = new double[k][k];
@@ -158,7 +153,6 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       sums = new double[k][dim];
       newmeans = new double[k][dim];
       sep = new double[k];
-      cdist = new double[k][k];
       csim = new double[k][k];
     }
 
@@ -193,7 +187,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
 
     protected int initialAssignToNearestCluster() {
       assert k == means.length;
-      initialSeperation(cdist);
+      initialSeperation(csim);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         NumberVector fv = relation.get(it);
         double[] l = lower.get(it);
@@ -201,7 +195,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         double best = l[0] = distance(fv, means[0]);
         int minIndex = 0;
         for(int j = 1; j < k; j++) {
-          if(best > cdist[minIndex][j]) {
+          if(best > csim[minIndex][j]) {
             double dist = l[j] = distance(fv, means[j]);
             if(dist < best) {
               minIndex = j;
@@ -211,7 +205,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         }
         for(int j = 1; j < k; j++) {
           if(l[j] == 0. && j != minIndex) {
-            l[j] = 2 * cdist[minIndex][j] - best;
+            l[j] = 2 * csim[minIndex][j] - best;
           }
         }
         // Assign to nearest cluster.
@@ -223,6 +217,10 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       return relation.size();
     }
 
+    protected double similarityFromDistance(double dist) {
+      return 1 - dist * dist;
+    }
+
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
@@ -230,49 +228,43 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int orig = assignment.intValue(it);
-        double u = upper.doubleValue(it);
+        double uSim = distanceFromSimilarity(upper.doubleValue(it));
         // Upper bound check (#2):
-        if(u <= sep[orig]) {
+        if(uSim >= sep[orig]) {
           continue;
         }
-        boolean recomputeSimilarity = true; // Elkan's r(x)
-        boolean recomputeDistance = true;
-        double curSim = .0;
+        boolean recompute_u = true; // Elkan's r(x)
         NumberVector fv = relation.get(it);
         double[] l = lower.get(it);
         // Check all (other) means:
         int cur = orig;
         for(int j = 0; j < k; j++) {
-          if(orig == j || u <= l[j] || u <= cdist[cur][j]) {
-            continue; // Condition #3 i-iii not satisfied
+          if(orig == j || uSim >= csim[cur][j]) {
+            continue; // Condition #3 i-ii not satisfied
           }
-          if(recomputeSimilarity) {
-            curSim = similarity(fv, means[cur]);
-            recomputeSimilarity = false; // Once only
+          double lSim = similarityFromDistance(l[j]);
+          if(uSim >= lSim) {
+            continue; // Condition #3 iii not satisfied
           }
-          if(curSim >= csim[cur][j]) {
-            continue;
+          if(recompute_u) {
+            uSim = similarity(fv, means[cur]);
+            upper.putDouble(it, distanceFromSimilarity(uSim));
+            recompute_u = false; // Once only
           }
-          if(recomputeDistance) { // Need to update bound? #3a
-            u = distanceFromSimilarity(curSim);
-            upper.putDouble(it, u);
-            recomputeDistance = false; // Once only
-          }
-          if(u <= l[j]) { // #3b
+          if(uSim >= csim[cur][j] || uSim >= lSim) {
             continue;
           }
           double sim = similarity(fv, means[j]);
           double dist = distanceFromSimilarity(sim);
           l[j] = dist;
-          if(sim > curSim) {
+          if(sim > uSim) {
             cur = j;
-            curSim = sim;
-            u = dist;
+            uSim = sim;
           }
         }
         // Object is to be reassigned.
         if(cur != orig) {
-          upper.putDouble(it, u); // Remember bound.
+          upper.putDouble(it, distanceFromSimilarity(uSim)); // Remember bound.
           clusters.get(cur).add(it);
           clusters.get(orig).remove(it);
           assignment.putInt(it, cur);
@@ -282,6 +274,26 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
       }
       // assert noAssignmentWrong();
       return changed;
+    }
+
+    protected void recomputeSeparation() {
+      final int k = means.length;
+      assert sep.length == k;
+      Arrays.fill(sep, Double.NEGATIVE_INFINITY);
+      // First find max Similarity
+      for(int i = 1; i < k; i++) {
+        double[] m1 = means[i];
+        for(int j = 0; j < i; j++) {
+          double curSim = similarity(m1, means[j]);
+          csim[i][j] = csim[j][i] = (curSim + 3) * 1. / 4.;
+          sep[i] = (curSim > sep[i]) ? curSim : sep[i];
+          sep[j] = (curSim > sep[j]) ? curSim : sep[j];
+        }
+      }
+      // Now translate to 1-(.5*sqrt(1-a))^2
+      for(int i = 0; i < k; i++) {
+        sep[i] = (sep[i] + 3) * .25;
+      }
     }
 
     private boolean noAssignmentWrong() {
@@ -328,8 +340,8 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         }
       }
       LOG.error("wrong assignments : " + changed);
-      // return changed == 0;
-      return true;
+      return changed == 0;
+      // return true;
     }
 
     protected double similarity(NumberVector vec1, double[] vec2) {
@@ -349,8 +361,18 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     protected void updateBounds(double[] move) {
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         upper.increment(it, move[assignment.intValue(it)]);
-        VMath.minusEquals(lower.get(it), move);
+        if(upper.doubleValue(it) > 1.) {
+          upper.put(it, 1.);
+        }
+        boundedMinusEquals(lower.get(it), move);
       }
+    }
+
+    public static double[] boundedMinusEquals(final double[] v1, final double[] v2) {
+      for(int i = 0; i < v1.length; i++) {
+        v1[i] = Math.max(v1[i] - v2[i], 0.);
+      }
+      return v1;
     }
 
     /**
@@ -365,23 +387,6 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         for(int j = 0; j < i; j++) {
           csim[i][j] = csim[j][i] = similarity(mi, means[j]);
           cdist[i][j] = cdist[j][i] = .5 * distanceFromSimilarity(csim[i][j]);
-        }
-      }
-    }
-
-    protected void recomputeSeparation() {
-      final int k = means.length;
-      assert sep.length == k;
-      Arrays.fill(sep, Double.POSITIVE_INFINITY);
-      for(int i = 1; i < k; i++) {
-        double[] mi = means[i];
-        for(int j = 0; j < i; j++) {
-          double sim = similarity(mi, means[j]);
-          csim[i][j] = csim[j][i] = (sim + 3) * 1. / 4.;
-          double halfd = 0.5 * distanceFromSimilarity(sim);
-          cdist[i][j] = cdist[j][i] = halfd;
-          sep[i] = (halfd < sep[i]) ? halfd : sep[i];
-          sep[j] = (halfd < sep[j]) ? halfd : sep[j];
         }
       }
     }
@@ -412,8 +417,8 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     }
 
     @Override
-    public ElkanSphericalKMeans<V> make() {
-      return new ElkanSphericalKMeans<>(k, maxiter, initializer, varstat);
+    public ElkanSphericalKMeans3<V> make() {
+      return new ElkanSphericalKMeans3<>(k, maxiter, initializer, varstat);
     }
   }
 }
