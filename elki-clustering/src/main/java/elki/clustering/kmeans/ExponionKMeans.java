@@ -211,7 +211,7 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
         }
         lower.putDouble(it, min2 == curd2 ? u : isSquared ? FastMath.sqrt(min2) : min2);
       }
-      printMinDist(minR);
+      // printMinDist(minR);
       return changed;
     }
 
