@@ -22,6 +22,8 @@ package elki.clustering.kmeans;
 
 import java.util.Arrays;
 
+import com.sun.tools.sjavac.Log;
+
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
 import elki.data.NumberVector;
@@ -39,8 +41,7 @@ import net.jafama.FastMath;
 /**
  * Newlings's exponion k-means algorithm, exploiting the triangle inequality.
  * <p>
- * This is <b>not</b> a complete implementation, the approximative sorting part
- * is missing. We also had to guess on the paper how to make best use of F.
+ * This is rewritten for a spherical k-Means.
  * <p>
  * Reference:
  * <p>
@@ -48,10 +49,7 @@ import net.jafama.FastMath;
  * Fast k-means with accurate bounds<br>
  * Proc. 33nd Int. Conf. on Machine Learning, ICML 2016
  *
- * @author Erich Schubert
- * @since 0.7.5
- *
- * @navassoc - - - KMeansModel
+ * @author Alexander Voﬂ
  *
  * @param <V> vector datatype
  */
@@ -82,7 +80,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
-    instance.printAssignments();
+    // instance.printAssignments();
     return instance.buildResult(varstat, relation);
   }
 
@@ -111,14 +109,9 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
     int[][] cnum;
 
     /**
-     * outer radius of layer
+     * Outer radius of layers
      */
     double[][] eRadius;
-
-    /**
-     * first index in cnum where similarity is 0
-     */
-    int[] eMax;
 
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
       super(relation, means);
@@ -132,7 +125,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
       int radLen = k > 6 ? (int) Math.ceil((Math.log(k - 2) / Math.log(2)) - 1) : 1;
       eRadius = new double[k][radLen];
-      eMax = new int[k];
     }
 
     @Override
@@ -140,7 +132,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       assert (k == means.length);
       recomputeSeparation();
       partialSort();
-      // nearestMeans(cdist, cnum);
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
@@ -156,9 +147,9 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
         // Update the upper bound
         NumberVector fv = relation.get(it);
-        double curs2 = similarity(fv, means[cur]);
-        double curd2 = distanceFromSimilarity(curs2);
-        upperBound = curd2;
+        double curSim = similarity(fv, means[cur]);
+        double curDist = distanceFromSimilarity(curSim);
+        upperBound = curDist;
         upper.putDouble(it, upperBound);
         if(upperBound <= lowerBound) {
           continue;
@@ -167,9 +158,10 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           continue;
         }
         // Find closest center, and distance to two closest centers
-        double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
+        double max1 = curSim, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 2 * (upperBound + sa); // Our cdist are scaled 0.5
+        // double r = 1 - FastMath.pow2(2 * (upperBound + sa)); // Our cdist are
+        double r = curSim; // scaled 0.5
         // System.out.println();
         // System.out.println(cur + " radius : " + r);
         // System.out.println(Arrays.toString(eRadius[cur]));
@@ -193,9 +185,9 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           assignment.putInt(it, maxIndex);
           plusMinusEquals(sums[maxIndex], sums[cur], fv);
           ++changed;
-          upper.putDouble(it, max1 == curs2 ? upperBound : distanceFromSimilarity(max1));
+          upper.putDouble(it, max1 == curSim ? upperBound : distanceFromSimilarity(max1));
         }
-        lower.putDouble(it, max2 == curs2 ? upperBound : distanceFromSimilarity(max2));
+        lower.putDouble(it, max2 == curSim ? upperBound : distanceFromSimilarity(max2));
       }
       // printAssignments();
       // assert noAssignmentWrong();
@@ -212,12 +204,12 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
     private int findJ(DBIDIter it, double r) {
       int cur = assignment.intValue(it);
       double[] curE = eRadius[cur];
-      if(r >= curE[curE.length - 1]) {
+      if(r <= curE[curE.length - 1]) {
         return k - 1;
       }
       int ind = 0;
       for(int f = 0; f < curE.length; f++) {
-        if(r <= curE[ind++]) {
+        if(r >= curE[ind++]) {
           break;
         }
       }
@@ -234,22 +226,19 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         int right = cnum[j].length - 1;
         int annulusInd = eRadius[j].length - 1;
         int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
-        selectBiggest(cnum[j], csim[j], right, amount);
-        double max = maxExceptJ(cnum[j], csim[j], j, amount, right);
-        eRadius[j][annulusInd--] = distanceFromSimilarity(max);
+        selectSmallest(cnum[j], csim[j], right, amount);
+        eRadius[j][annulusInd] = maxExceptJ(cnum[j], csim[j], j, amount, right);
         amount = (amount - 2) / 2;
         right = (int) FastMath.twoPow(annulusInd + 1) + 1;
 
         while(annulusInd-- >= 1) {
-          selectBiggest(cnum[j], csim[j], right, amount);
-          max = maxExceptJ(cnum[j], csim[j], j, amount, right);
-          eRadius[j][annulusInd] = distanceFromSimilarity(max);
+          selectSmallest(cnum[j], csim[j], right, amount);
+          eRadius[j][annulusInd] = maxExceptJ(cnum[j], csim[j], j, amount, right);
           amount = (amount - 2) / 2;
           right = (int) FastMath.twoPow(annulusInd + 1) + 1;
         }
 
-        max = maxExceptJ(cnum[j], csim[j], j, 0, 1);
-        eRadius[j][0] = distanceFromSimilarity(max);
+        eRadius[j][0] = maxExceptJ(cnum[j], csim[j], j, 0, 1);
       }
     }
 
@@ -264,10 +253,11 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           max = values[index];
         }
       }
-      return max;
+      // return max;
+      return 1 + FastMath.pow2((sep[j] - distanceFromSimilarity(max)) / 2);
     }
 
-    private void selectBiggest(int[] indices, double values[], int right, int amount) {
+    private void selectSmallest(int[] indices, double values[], int right, int amount) {
       int left = 0;
       int goalIndex = amount - 1;
       while(true) {
@@ -291,75 +281,18 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
     }
 
-    /**
-     * Partition by the Lomutu partition scheme
-     * 
-     * @param indices
-     * @param values
-     * @param left
-     * @param right
-     * @param pivotIndex
-     * @return
-     */
     private int partition(int[] indices, double[] values, int left, int right, int pivotIndex) {
       double pivotValue = values[indices[pivotIndex]];
       swap(indices, pivotIndex, right);
       int storeIndex = left;
       for(int i = left; i < right; i++) {
-        if(values[indices[i]] < pivotValue) {
+        if(values[indices[i]] > pivotValue) {
           swap(indices, storeIndex++, i);
         }
       }
       swap(indices, right, storeIndex);
       return -storeIndex;
     }
-
-    // private void selectBiggest(int[] indices, double values[], int right, int
-    // amount) {
-    // int left = 0;
-    // int goalIndex = amount - 1;
-    // while(true) {
-    // if(left >= right) {
-    // return;
-    // }
-    //
-    // int pivotIndex = left + (int) (Math.random() * (right - left));
-    // double pivot = values[indices[pivotIndex]];
-    // pivotIndex = partition(indices, values, left, right, pivot);
-    //
-    // if(pivotIndex == goalIndex) {
-    // return;
-    // }
-    //
-    // if(pivotIndex < goalIndex) {
-    // right = pivotIndex - 1;
-    // }
-    // else {
-    // left = pivotIndex + 1;
-    // }
-    // }
-    // }
-    // private int partition(int[] indices, double[] values, int left, int
-    // right, double pivot) {
-    // double minVal = Math.min(values[indices[left]], values[indices[right]]);
-    // while(true) {
-    // double lVal = values[indices[left]];
-    // double rVal = values[indices[right]];
-    // while(values[indices[left]] > pivot) {
-    // minVal = Math.min(minVal, values[left]);
-    // left++;
-    // }
-    // while(values[indices[right]] < pivot) {
-    // minVal = Math.min(minVal, values[right]);
-    // right--;
-    // }
-    // if(left >= right) {
-    // break;
-    // }
-    // swap(indices, left, right);
-    // }
-    // return right;
-    // }
 
     /**
      * Sorts nums so that all indices j' in nums with values[j'] == 0 are at the
@@ -433,7 +366,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
   /**
    * Parameterization class.
    *
-   * @author Erich Schubert
+   * @author Alexander Voﬂ
    */
   public static class Par<V extends NumberVector> extends HamerlySphericalKMeans.Par<V> {
 

@@ -40,6 +40,23 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
+/**
+ * A spherical k-Means algorithm based on Hamerly's fast k-means by exploiting
+ * the triangle inequality.
+ * <p>
+ * Reference:
+ * <p>
+ * G. Hamerly<br>
+ * Making k-means even faster<br>
+ * Proc. 2010 SIAM International Conference on Data Mining
+ *
+ * @author Alexander Voﬂ
+ * @since 0.7.0
+ *
+ * @navassoc - - - KMeansModel
+ *
+ * @param <V> vector datatype
+ */
 public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   /**
    * The logger for this class.
@@ -69,7 +86,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
   public Clustering<KMeansModel> run(Relation<V> relation) {
     Instance instance = new Instance(relation, initialMeans(relation));
     instance.run(maxiter);
-    instance.printAssignments();
+    // instance.printAssignments();
     return instance.buildResult(varstat, relation);
   }
 
@@ -153,12 +170,12 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
     }
 
     void printAssignments() {
-      // System.out.print("[");
-      // for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
-      // NumberVector fv = relation.get(it);
-      // System.out.print(assignment.intValue(it) + ", ");
-      // }
-      // System.out.println("]");
+      System.out.print("[");
+      for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
+        NumberVector fv = relation.get(it);
+        System.out.print(assignment.intValue(it) + ", ");
+      }
+      System.out.println("]");
     }
 
     /**

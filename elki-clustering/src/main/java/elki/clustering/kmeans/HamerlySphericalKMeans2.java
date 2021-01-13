@@ -41,6 +41,23 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
+/**
+ * A spherical k-Means algorithm based on Hamerly's fast k-means by exploiting
+ * the triangle inequality.
+ * <p>
+ * Reference:
+ * <p>
+ * G. Hamerly<br>
+ * Making k-means even faster<br>
+ * Proc. 2010 SIAM International Conference on Data Mining
+ *
+ * @author Alexander Voﬂ
+ * @since 0.7.0
+ *
+ * @navassoc - - - KMeansModel
+ *
+ * @param <V> vector datatype
+ */
 public class HamerlySphericalKMeans2<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   /**
    * The logger for this class.

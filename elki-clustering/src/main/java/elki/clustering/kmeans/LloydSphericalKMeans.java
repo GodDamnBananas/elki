@@ -41,6 +41,28 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
 
+/**
+ * The standard spherical k-means algorithm based on the work of Lloyd and Forgy
+ * (independently).
+ * <p>
+ * Reference:
+ * <p>
+ * S. Lloyd<br>
+ * Least squares quantization in PCM<br>
+ * IEEE Transactions on Information Theory 28 (2)<br>
+ * previously published as Bell Telephone Laboratories Paper
+ * <p>
+ * E. W. Forgy<br>
+ * Cluster analysis of multivariate data: efficiency versus interpretability of
+ * classifications<br>
+ * Abstract published in Biometrics 21(3)
+ *
+ * @author Alexander Voﬂ
+ *
+ * @navassoc - - - KMeansModel
+ *
+ * @param <V> vector datatype
+ */
 public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
   private static final Logging LOG = Logging.getLogger(LloydSphericalKMeans.class);
 
@@ -166,7 +188,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   /**
    * Parameterization class.
    *
-   * @author Erich Schubert
+   * @author Alexander Voﬂ
    */
   public static class Par<V extends NumberVector> extends AbstractKMeans.Par<V> {
     @Override

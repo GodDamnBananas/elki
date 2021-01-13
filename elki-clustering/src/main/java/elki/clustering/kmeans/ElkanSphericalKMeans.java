@@ -43,11 +43,12 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
 import net.jafama.FastMath;
 
 /**
- * Elkan's fast k-means by exploiting the triangle inequality.
+ * A spherical K-Means Algorithm based on Elkan's fast k-means by exploiting the
+ * triangle inequality.
  * <p>
  * This variant needs O(n*k) additional memory to store bounds.
  * <p>
- * See {@link HamerlyKMeans} for a close variant that only uses O(n*2)
+ * See {@link HamerlySphericalKMeans} for a close variant that only uses O(n*2)
  * additional memory for bounds.
  * <p>
  * Reference:
@@ -103,7 +104,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   /**
    * Inner instance, storing state for a single data set.
    *
-   * @author Erich Schubert
+   * @author Alexander Voﬂ
    */
   protected static class Instance extends AbstractKMeans.Instance {
     /**
