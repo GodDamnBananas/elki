@@ -167,6 +167,10 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         // System.out.println(Arrays.toString(eRadius[cur]));
         int maxJ = findJ(it, r);
         // System.out.println("maxJ : " + maxJ);
+        int pruned = k - 1 - maxJ;
+        if(pruned > 0) {
+          System.out.println("pruned " + pruned);
+        }
         for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
           double sim = similarity(fv, means[c]);
@@ -208,7 +212,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         return k - 1;
       }
       int ind = 0;
-      for(int f = 0; f < curE.length; f++) {
+      while(ind < curE.length) {
         if(r >= curE[ind++]) {
           break;
         }
@@ -243,18 +247,18 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
     }
 
     private double maxExceptJ(int[] indices, double[] values, int j, int left, int right) {
-      double max = values[indices[left]];
+      double min = values[indices[left]];
       for(int i = left + 1; i <= right; i++) {
         int index = indices[i];
         if(index == j) {
           continue;
         }
-        if(values[index] > max) {
-          max = values[index];
+        if(values[index] < min) {
+          min = values[index];
         }
       }
       // return max;
-      return 1 + FastMath.pow2((sep[j] - distanceFromSimilarity(max)) / 2);
+      return 1 + FastMath.pow2((sep[j] - distanceFromSimilarity(min)) / 2);
     }
 
     private void selectSmallest(int[] indices, double values[], int right, int amount) {
@@ -291,7 +295,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
       }
       swap(indices, right, storeIndex);
-      return -storeIndex;
+      return storeIndex;
     }
 
     /**

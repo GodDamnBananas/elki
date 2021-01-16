@@ -21,6 +21,8 @@
 package elki.clustering.kmeans;
 
 import java.util.Arrays;
+import java.util.DoubleSummaryStatistics;
+import java.util.stream.Collectors;
 
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
@@ -139,6 +141,7 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
       partialSort();
       // nearestMeans(cdist, cnum);
       int changed = 0;
+      double minUpper = 1;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
         // Compute the current bound:
@@ -156,6 +159,7 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
         double curs2 = similarity(fv, means[cur]);
         double curd2 = distanceFromSimilarity(curs2);
         upperBound = curd2;
+        minUpper = Math.min(minUpper, upperBound);
         upper.putDouble(it, upperBound);
         if(upperBound <= lowerBound) {
           continue;
@@ -166,16 +170,16 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
         // Find closest center, and distance to two closest centers
         double max1 = curs2, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 2 * (upperBound + sa); // Our cdist are scaled 0.5
+        double r = 2 * (upperBound); // Our cdist are scaled 0.5
         // System.out.println();
         // System.out.println(cur + " radius : " + r);
         // System.out.println(Arrays.toString(eRadius[cur]));
         int maxJ = findJ(it, r);
         // System.out.println("maxJ : " + maxJ);
-        int pruned = k - 1 - maxJ;
-        if(pruned > 0) {
-          System.err.println("pruned " + pruned);
-        }
+        // int pruned = k - 1 - maxJ;
+        // if(pruned > 0) {
+        // System.err.println("pruned " + pruned);
+        // }
         for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
           double sim = similarity(fv, means[c]);
@@ -199,7 +203,14 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
         lower.putDouble(it, max2 == curs2 ? upperBound : distanceFromSimilarity(max2));
       }
       // printAssignments();
-      assert noAssignmentWrong();
+      // assert noAssignmentWrong();
+
+      // System.err.println();
+      // System.err.println("minUpper : " + minUpper);
+      // DoubleSummaryStatistics dsumstat =
+      // Arrays.stream(cdist).flatMapToDouble(Arrays::stream).filter(d -> d !=
+      // 0).summaryStatistics();
+      // System.err.println("cdist max :" + dsumstat.getMax());
       return changed;
     }
 
@@ -213,25 +224,19 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
     private int findJ(DBIDIter it, double r) {
       int cur = assignment.intValue(it);
       double[] curE = eRadius[cur];
-      double maxDist = Arrays.stream(cdist[cur]).max().getAsDouble();
-      double minDist = sep[cur];
+      // double maxDist = Arrays.stream(cdist[cur]).max().getAsDouble();
+      // double minDist = sep[cur];
       // System.err.println(r);
       // System.err.println(" maxDis: " + maxDist);
       // System.err.println(" minDis: " + minDist);
-      // System.err.println();
-      // System.err.println("curE : " + curE[curE.length - 1]);
-      // System.err.println("upper : " + upper.doubleValue(it));
+      // System.err.println(" curE : " + curE[curE.length - 1]);
+      // System.err.println(" upper : " + upper.doubleValue(it));
       if(r >= curE[curE.length - 1]) {
         return k - 1;
       }
-      // int ind = -1
-      // for(int f = 0; f < curE.length; f++) {
-      // if(r <= curE[++ind]) {
-      // break;
-      // }
-      // }
+      // System.err.println("pruned maybe");
       int ind = 0;
-      for(int f = 0; f < curE.length; f++) {
+      while(ind < curE.length) {
         if(r <= curE[ind]) {
           break;
         }
@@ -247,52 +252,77 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
           eRadius[j][0] = cdist[j][cnum[j][0]];
           return;
         }
+        double sa = 2 * sep[j];
         int right = cnum[j].length - 1;
         int annulusInd = eRadius[j].length - 1;
         int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
-        selectBiggest(cnum[j], csim[j], right, amount);
-        double max = maxExceptJ(cnum[j], csim[j], j, amount, right);
-        eRadius[j][annulusInd] = distanceFromSimilarity(max);
+        selectSmallest(cnum[j], csim[j], right, amount);
+        double max = minExceptJ(cnum[j], csim[j], j, amount, right);
+        eRadius[j][annulusInd] = distanceFromSimilarity(max) - sa;
+        // double selectedMin = distanceFromSimilarity(max);
+        // double min = distanceFromSimilarity(Arrays.stream(csim[j]).filter(d
+        // -> d != 0).min().getAsDouble());
         amount = (amount - 2) / 2;
         right = (int) FastMath.twoPow(annulusInd + 1) + 1;
 
         while(annulusInd-- >= 1) {
-          selectBiggest(cnum[j], csim[j], right, amount);
-          max = maxExceptJ(cnum[j], csim[j], j, amount, right);
-          eRadius[j][annulusInd] = distanceFromSimilarity(max);
+          selectSmallest(cnum[j], csim[j], right, amount);
+          max = minExceptJ(cnum[j], csim[j], j, amount, right);
+          eRadius[j][annulusInd] = distanceFromSimilarity(max) - sa;
           amount = (amount - 2) / 2;
           right = (int) FastMath.twoPow(annulusInd + 1) + 1;
         }
 
-        max = maxExceptJ(cnum[j], csim[j], j, 0, 1);
-        eRadius[j][0] = distanceFromSimilarity(max);
-      }
-      // printEradius();
-    }
-
-    void printEradius() {
-      for(int j = 0; j < k; j++) {
-        double[] ke = eRadius[j];
-        System.err.println(j + " : ");
-        System.err.println("    " + Arrays.toString(ke));
+        max = minExceptJ(cnum[j], csim[j], j, 0, 1);
+        eRadius[j][0] = distanceFromSimilarity(max) - sa;
       }
     }
+//    protected void partialSort() {
+//      for(int j = 0; j < k; j++) {
+//        if(k <= 2) {
+//          eRadius[j][0] = cdist[j][cnum[j][0]];
+//          return;
+//        }
+//        int right = cnum[j].length - 1;
+//        int annulusInd = eRadius[j].length - 1;
+//        int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
+//        selectSmallest(cnum[j], csim[j], right, amount);
+//        double max = minExceptJ(cnum[j], csim[j], j, amount, right);
+//        eRadius[j][annulusInd] = distanceFromSimilarity(max);
+//        // double selectedMin = distanceFromSimilarity(max);
+//        // double min = distanceFromSimilarity(Arrays.stream(csim[j]).filter(d
+//        // -> d != 0).min().getAsDouble());
+//        amount = (amount - 2) / 2;
+//        right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+//        
+//        while(annulusInd-- >= 1) {
+//          selectSmallest(cnum[j], csim[j], right, amount);
+//          max = minExceptJ(cnum[j], csim[j], j, amount, right);
+//          eRadius[j][annulusInd] = distanceFromSimilarity(max);
+//          amount = (amount - 2) / 2;
+//          right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+//        }
+//        
+//        max = minExceptJ(cnum[j], csim[j], j, 0, 1);
+//        eRadius[j][0] = distanceFromSimilarity(max);
+//      }
+//    }
 
-    private double maxExceptJ(int[] indices, double[] values, int j, int left, int right) {
-      double max = values[indices[left]];
+    private double minExceptJ(int[] indices, double[] values, int j, int left, int right) {
+      double min = values[indices[left]];
       for(int i = left + 1; i <= right; i++) {
         int index = indices[i];
         if(index == j) {
           continue;
         }
-        if(values[index] > max) {
-          max = values[index];
+        if(values[index] < min) {
+          min = values[index];
         }
       }
-      return max;
+      return min;
     }
 
-    private void selectBiggest(int[] indices, double values[], int right, int amount) {
+    private void selectSmallest(int[] indices, double values[], int right, int amount) {
       int left = 0;
       int goalIndex = amount - 1;
       while(true) {
@@ -331,12 +361,13 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
       swap(indices, pivotIndex, right);
       int storeIndex = left;
       for(int i = left; i < right; i++) {
-        if(values[indices[i]] < pivotValue) {
+        // TODO CHANGED < TO > for selecting smallest
+        if(values[indices[i]] > pivotValue) {
           swap(indices, storeIndex++, i);
         }
       }
       swap(indices, right, storeIndex);
-      return -storeIndex;
+      return storeIndex;
     }
 
     /**
