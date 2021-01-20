@@ -22,8 +22,11 @@ package elki.clustering.kmeans;
 
 import java.util.List;
 
+import elki.clustering.kmeans.LloydKMeans.Instance;
 import elki.clustering.kmeans.initialization.KMeansInitialization;
+import elki.data.Clustering;
 import elki.data.NumberVector;
+import elki.data.model.KMeansModel;
 import elki.database.ids.DBIDIter;
 import elki.database.ids.DBIDs;
 import elki.database.relation.Relation;
@@ -68,6 +71,13 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
   public LloydUnoptimizedSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
+  }
+
+  @Override
+  public Clustering<KMeansModel> run(Relation<V> relation) {
+    Instance instance = new Instance(relation, distance, initialMeans(relation));
+    instance.run(maxiter);
+    return instance.buildResult(true, relation);
   }
 
   protected static class Instance extends LloydKMeans.Instance {
@@ -117,7 +127,7 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
           plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
-        newMeans[i] = UnitLengthEuclidianDistance.STATIC.normalize(newMeans[i]);
+        newMeans[i] = UnitLengthEuclidianDistance.STATIC.normalize(sum);
       }
       return newMeans;
     }
