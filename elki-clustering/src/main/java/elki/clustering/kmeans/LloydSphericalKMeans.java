@@ -20,8 +20,6 @@
  */
 package elki.clustering.kmeans;
 
-import static elki.math.linearalgebra.VMath.timesEquals;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -38,8 +36,6 @@ import elki.distance.UnitLengthEuclidianDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
 import elki.utilities.optionhandling.parameterization.Parameterization;
-
-import net.jafama.FastMath;
 
 /**
  * The standard spherical k-means algorithm based on the work of Lloyd and Forgy
@@ -92,12 +88,8 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
 
     @Override
     protected int iterate(int iteration) {
-      long start = System.currentTimeMillis();
       means = iteration == 1 ? means : means(clusters, means, relation);
-      LOG.info("means : " + (System.currentTimeMillis() - start));
-      start = System.currentTimeMillis();
       int assign = assignToNearestCluster();
-      LOG.info("assign : " + (System.currentTimeMillis() - start));
       return assign;
     }
 
@@ -174,12 +166,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
-        double length = .0;
-        for(final double d : sum) {
-          length += d * d;
-        }
-        length = FastMath.sqrt(length);
-        newMeans[i] = timesEquals(sum, 1. / length);
+        newMeans[i] = UnitLengthEuclidianDistance.normalize(sum);
       }
       return newMeans;
     }

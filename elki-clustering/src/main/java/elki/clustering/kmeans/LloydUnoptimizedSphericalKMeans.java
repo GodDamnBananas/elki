@@ -22,7 +22,6 @@ package elki.clustering.kmeans;
 
 import java.util.List;
 
-import elki.clustering.kmeans.LloydKMeans.Instance;
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
 import elki.data.NumberVector;
@@ -39,7 +38,8 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
  * The unoptimized spherical k-means algorithm based on the work of Lloyd and
  * Forgy
  * (independently). This version utilizes a distance Function that uses the dot
- * product for vectors of unit length. For more information, see
+ * product for vectors of unit length and normalizes the means to unit length.
+ * For more information, see
  * {@link UnitLengthEuclidianDistance}
  * <p>
  * Reference:
@@ -93,17 +93,13 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
 
     @Override
     protected int iterate(int iteration) {
-      long start = System.currentTimeMillis();
       means = iteration == 1 ? means : means(clusters, means, relation);
-      LOG.info("means : " + (System.currentTimeMillis() - start));
-      start = System.currentTimeMillis();
-      int assign = assignToNearestCluster();
-      LOG.info("assign : " + (System.currentTimeMillis() - start));
-      return assign;
+      return assignToNearestCluster();
     }
 
     /**
-     * Returns the mean vectors of the given clusters in the given database.
+     * Returns the normalized mean vectors of the given clusters in the given
+     * database.
      *
      * @param clusters the clusters to compute the means
      * @param means the recent means
@@ -127,7 +123,7 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
           plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
-        newMeans[i] = UnitLengthEuclidianDistance.STATIC.normalize(sum);
+        newMeans[i] = UnitLengthEuclidianDistance.normalize(sum);
       }
       return newMeans;
     }

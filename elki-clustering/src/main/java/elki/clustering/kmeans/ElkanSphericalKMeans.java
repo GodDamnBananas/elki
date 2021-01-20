@@ -187,8 +187,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         for(double d : sums[i]) {
           length += d * d;
         }
-        length = FastMath.sqrt(length);
-        VMath.overwriteTimes(dst[i], sums[i], 1. / length);
+        dst[i] = UnitLengthEuclidianDistance.normalize(sums[i]);
       }
     }
 

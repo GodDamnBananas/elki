@@ -35,7 +35,6 @@ import elki.database.relation.Relation;
 import elki.distance.UnitLengthEuclidianDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
-import elki.math.linearalgebra.VMath;
 import elki.utilities.optionhandling.parameterization.Parameterization;
 
 import net.jafama.FastMath;
@@ -169,10 +168,9 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       return assignToNearestCluster();
     }
 
-    void printAssignments() {
+    protected void printAssignments() {
       System.out.print("[");
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
-        NumberVector fv = relation.get(it);
         System.out.print(assignment.intValue(it) + ", ");
       }
       System.out.println("]");
@@ -409,17 +407,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
      */
     protected void meansFromSums(double[][] dst, double[][] sums) {
       for(int i = 0; i < k; i++) {
-        double length = .0;
-        for(double d : sums[i]) {
-          length += d * d;
-        }
-        length = FastMath.sqrt(length);
-        if(length == 0) {
-          System.arraycopy(sums[i], 0, dst[i], 0, sums[i].length);
-        }
-        else {
-          VMath.overwriteTimes(dst[i], sums[i], 1. / length);
-        }
+        dst[i] = UnitLengthEuclidianDistance.normalize(sums[i]);
       }
     }
 

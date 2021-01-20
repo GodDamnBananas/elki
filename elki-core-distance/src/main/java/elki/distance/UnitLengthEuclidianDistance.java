@@ -22,6 +22,8 @@ package elki.distance;
 
 import static elki.math.linearalgebra.VMath.timesEquals;
 
+import java.util.Arrays;
+
 import elki.data.NumberVector;
 import elki.math.DotProduct;
 
@@ -64,13 +66,19 @@ public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
     return FastMath.sqrt(1 - DotProduct.dot(o1, o2));
   }
 
-  public double[] normalize(double[] vec) {
+  /**
+   * Returns a copy of given vector that is normalized to unit length.
+   * 
+   * @param vec vector as double array
+   * @return normalized copy of given vector
+   */
+  public static double[] normalize(double[] vec) {
     double length = .0;
     for(final double d : vec) {
       length += d * d;
     }
     length = FastMath.sqrt(length);
-    return timesEquals(vec, 1. / length);
+    return timesEquals(Arrays.copyOf(vec, vec.length), 1. / length);
   }
 
 }
