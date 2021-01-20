@@ -59,11 +59,11 @@ import net.jafama.FastMath;
     booktitle = "Proc. 33nd Int. Conf. on Machine Learning, ICML 2016", //
     url = "http://jmlr.org/proceedings/papers/v48/newling16.html", //
     bibkey = "DBLP:conf/icml/NewlingF16")
-public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends HamerlySphericalKMeans<V> {
+public class ExponionSemioptimizedSphericalKMeans<V extends NumberVector> extends HamerlySphericalKMeans<V> {
   /**
    * The logger for this class.
    */
-  private static final Logging LOG = Logging.getLogger(ExponionUnoptimizedSphericalKMeans.class);
+  private static final Logging LOG = Logging.getLogger(ExponionSemioptimizedSphericalKMeans.class);
 
   /**
    * Constructor.
@@ -73,7 +73,7 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
    * @param initializer Initialization method
    * @param varstat Compute the variance statistic
    */
-  public ExponionUnoptimizedSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+  public ExponionSemioptimizedSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(k, maxiter, initializer, varstat);
   }
 
@@ -447,8 +447,8 @@ public class ExponionUnoptimizedSphericalKMeans<V extends NumberVector> extends 
   public static class Par<V extends NumberVector> extends HamerlySphericalKMeans.Par<V> {
 
     @Override
-    public ExponionUnoptimizedSphericalKMeans<V> make() {
-      return new ExponionUnoptimizedSphericalKMeans<>(k, maxiter, initializer, varstat);
+    public ExponionSemioptimizedSphericalKMeans<V> make() {
+      return new ExponionSemioptimizedSphericalKMeans<>(k, maxiter, initializer, varstat);
     }
   }
 }

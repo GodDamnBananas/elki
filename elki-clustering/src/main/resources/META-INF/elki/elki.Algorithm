@@ -45,6 +45,7 @@ elki.clustering.kmeans.parallel.ParallelLloydKMeans
 elki.clustering.kmeans.YinYangKMeans
 elki.clustering.kmeans.XMeans
 elki.clustering.kmeans.LloydSphericalKMeans
+elki.clustering.kmeans.LloydUnoptimizedSphericalKMeans
 elki.clustering.kmeans.ElkanSphericalKMeans
 elki.clustering.kmeans.HamerlySphericalKMeans
 elki.clustering.kmeans.HamerlySphericalKMeans2

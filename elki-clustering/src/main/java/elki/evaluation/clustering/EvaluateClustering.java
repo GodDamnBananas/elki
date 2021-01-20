@@ -216,6 +216,7 @@ public class EvaluateClustering implements Evaluator {
           .addMeasure("Recall", paircount.recall(), 0, 1, false) //
           .addMeasure("Rand", paircount.randIndex(), 0, 1, false) //
           .addMeasure("ARI", paircount.adjustedRandIndex(), 0, 1, false) //
+          .addMeasure("Mirkin", paircount.mirkin(), 0, 1, false) //
           .addMeasure("Fowlkes-Mallows", paircount.fowlkesMallows(), 0, 1, false);
 
       Entropy entropy = contmat.getEntropy();

@@ -20,17 +20,21 @@
  */
 package elki.distance;
 
+import static elki.math.linearalgebra.VMath.timesEquals;
+
 import elki.data.NumberVector;
 import elki.math.DotProduct;
 
 import net.jafama.FastMath;
 
 /**
- * The euclidian distance can be calculated from the dot product. When both
- * vectors have unit length, it can be further simplified while preserving the
- * triangle inequality. This class computes this distance. <br>
+ * This class computes the metric distance d(A,B) = sqrt(1-A*B) which is derived
+ * from the Euclidian Distance. <br>
  * 
- * @author alex
+ * ||A-B|| = sqrt(2(1-A*B)), therefore sqrt(1-A*B) is a metric if A and B are
+ * normalized to unit length.
+ * 
+ * @author Alexander Voﬂ
  *
  */
 public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
@@ -58,6 +62,15 @@ public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
   @Override
   public double distance(NumberVector o1, NumberVector o2) {
     return FastMath.sqrt(1 - DotProduct.dot(o1, o2));
+  }
+
+  public double[] normalize(double[] vec) {
+    double length = .0;
+    for(final double d : vec) {
+      length += d * d;
+    }
+    length = FastMath.sqrt(length);
+    return timesEquals(vec, 1. / length);
   }
 
 }
