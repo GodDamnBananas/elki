@@ -20,8 +20,6 @@
  */
 package elki.clustering.kmeans;
 
-import java.util.Arrays;
-
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
 import elki.data.NumberVector;
@@ -108,8 +106,6 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
      */
     int[][] cnum;
 
-    boolean prunedAny = false;
-
     public Instance(Relation<? extends NumberVector> relation, NumberVectorDistance<?> df, double[][] means) {
       super(relation, df, means);
       second = DataStoreUtil.makeIntegerStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, -1);
@@ -187,8 +183,6 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
         for(int i = 0; i < k - 1; i++) {
           int c = cnum[cur][i];
           if(cdist[cur][c] > r) {
-            System.out.println("pruned " + (k - 1 - i));
-            prunedAny = true;
             break;
           }
           double dist = distance(fv, means[c]);
@@ -211,18 +205,7 @@ public class ExponionKMeans<V extends NumberVector> extends HamerlyKMeans<V> {
         }
         lower.putDouble(it, min2 == curd2 ? u : isSquared ? FastMath.sqrt(min2) : min2);
       }
-      // printMinDist(minR);
       return changed;
-    }
-
-    private void printMinDist(double minR) {
-      double max = Arrays.stream(cdist).flatMapToDouble(dist -> Arrays.stream(dist)).max().getAsDouble();
-      System.out.println("max : " + max);
-      System.out.println("minR : " + minR);
-      boolean canBePruned = (max > minR);
-      (canBePruned ? System.err : System.out).println("canBePruned : " + canBePruned);
-      (prunedAny ? System.err : System.out).println("prunedAny : " + prunedAny);
-      System.out.println();
     }
 
     @Override

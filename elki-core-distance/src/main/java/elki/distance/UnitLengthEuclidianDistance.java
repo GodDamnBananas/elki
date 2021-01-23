@@ -33,7 +33,8 @@ import net.jafama.FastMath;
  * This class computes the metric distance d(A,B) = sqrt(1-A*B) which is derived
  * from the Euclidian Distance. <br>
  * 
- * ||A-B|| = sqrt(2(1-A*B)), therefore sqrt(1-A*B) is a metric if A and B are
+ * ||A-B|| = sqrt(2(1-A*B)) = sqrt(2)*sqrt(1-A*B), therefore sqrt(1-A*B) is a
+ * metric if A and B are
  * normalized to unit length.
  * 
  * @author Alexander Voﬂ

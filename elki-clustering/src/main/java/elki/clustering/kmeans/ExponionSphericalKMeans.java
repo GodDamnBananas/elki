@@ -22,8 +22,6 @@ package elki.clustering.kmeans;
 
 import java.util.Arrays;
 
-import com.sun.tools.sjavac.Log;
-
 import elki.clustering.kmeans.initialization.KMeansInitialization;
 import elki.data.Clustering;
 import elki.data.NumberVector;
@@ -169,7 +167,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         // System.out.println("maxJ : " + maxJ);
         int pruned = k - 1 - maxJ;
         if(pruned > 0) {
-          System.out.println("pruned " + pruned);
+          // System.out.println("pruned " + pruned);
         }
         for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
@@ -270,7 +268,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         }
 
         int pivotIndex = left + (int) (Math.random() * (right - left));
-        pivotIndex = partition(indices, values, left, right, pivotIndex);
+        pivotIndex = partitionBiggestFirst(indices, values, left, right, pivotIndex);
 
         if(pivotIndex == goalIndex) {
           return;
@@ -285,7 +283,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
     }
 
-    private int partition(int[] indices, double[] values, int left, int right, int pivotIndex) {
+    private int partitionBiggestFirst(int[] indices, double[] values, int left, int right, int pivotIndex) {
       double pivotValue = values[indices[pivotIndex]];
       swap(indices, pivotIndex, right);
       int storeIndex = left;
@@ -296,38 +294,6 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       }
       swap(indices, right, storeIndex);
       return storeIndex;
-    }
-
-    /**
-     * Sorts nums so that all indices j' in nums with values[j'] == 0 are at the
-     * end of nums. Returns the index of the first j'. Returns -1 if values does
-     * not contain a 1.
-     */
-    protected int presort(int[] nums, double[] values) {
-      int left = 0, right = nums.length - 1;
-      while(left < right) {
-        // move left to first 1
-        while(values[nums[left]] != 0. && left < right) {
-          left++;
-        }
-        // move right to next non 1
-        while(values[nums[right]] == 0. && right > left) {
-          right--;
-        }
-        swap(nums, left, right);
-
-        // move left and right
-        right--;
-        left++;
-      }
-      // array contains no 1
-      if(left >= nums.length || right <= 0) {
-        return -1;
-      }
-      if(values[nums[right]] == 0.) {
-        return right;
-      }
-      return right + 1;
     }
 
     /**
