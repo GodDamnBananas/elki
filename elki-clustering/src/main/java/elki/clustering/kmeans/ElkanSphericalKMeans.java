@@ -183,10 +183,6 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
      */
     protected void meansFromSums(double[][] dst, double[][] sums) {
       for(int i = 0; i < k; i++) {
-        double length = .0;
-        for(double d : sums[i]) {
-          length += d * d;
-        }
         dst[i] = UnitLengthEuclidianDistance.normalize(sums[i]);
       }
     }
@@ -269,6 +265,10 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
             curSim = sim;
             u = dist;
           }
+        }
+        if(recomputeDistance && !recomputeSimilarity) {
+          u = distanceFromSimilarity(curSim);
+          upper.putDouble(it, u);
         }
         // Object is to be reassigned.
         if(cur != orig) {

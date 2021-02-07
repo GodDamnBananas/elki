@@ -32,7 +32,6 @@ import elki.database.datastore.WritableIntegerDataStore;
 import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
-import elki.utilities.datastructures.arrays.DoubleIntegerArrayQuickSort;
 import elki.utilities.documentation.Reference;
 
 import net.jafama.FastMath;
@@ -57,11 +56,11 @@ import net.jafama.FastMath;
     booktitle = "Proc. 33nd Int. Conf. on Machine Learning, ICML 2016", //
     url = "http://jmlr.org/proceedings/papers/v48/newling16.html", //
     bibkey = "DBLP:conf/icml/NewlingF16")
-public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphericalKMeans<V> {
+public class ExponionPartialSortSphericalKMeans<V extends NumberVector> extends HamerlySphericalKMeans<V> {
   /**
    * The logger for this class.
    */
-  private static final Logging LOG = Logging.getLogger(ExponionSphericalKMeans.class);
+  private static final Logging LOG = Logging.getLogger(ExponionPartialSortSphericalKMeans.class);
 
   /**
    * Constructor.
@@ -71,7 +70,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
    * @param initializer Initialization method
    * @param varstat Compute the variance statistic
    */
-  public ExponionSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
+  public ExponionPartialSortSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
     super(k, maxiter, initializer, varstat);
   }
 
@@ -107,6 +106,11 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
      */
     int[][] cnum;
 
+    /**
+     * Outer radius of layers
+     */
+    double[][] eRadius;
+
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
       super(relation, means);
       second = DataStoreUtil.makeIntegerStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, -1);
@@ -117,34 +121,15 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
           cnum[x][y] = y >= x ? y + 1 : y;
         }
       }
-    }
-
-    /**
-     * Recompute the separation of cluster means.
-     * <p>
-     * Used by sort, and our exponion implementation.
-     *
-     * @param cdist Center-to-Center distances
-     * @param cnum Center numbers
-     */
-    protected void sortMeans() {
-      final int k = csim.length;
-      double[] buf = new double[k - 1];
-      for(int i = 0; i < k; i++) {
-        System.arraycopy(csim[i], 0, buf, 0, i);
-        System.arraycopy(csim[i], i + 1, buf, i, k - i - 1);
-        for(int j = 0; j < buf.length; j++) {
-          cnum[i][j] = j < i ? j : (j + 1);
-        }
-        DoubleIntegerArrayQuickSort.sortReverse(buf, cnum[i], k - 1);
-      }
+      int radLen = k > 6 ? (int) Math.ceil((Math.log(k - 2) / Math.log(2)) - 1) : 1;
+      eRadius = new double[k][radLen];
     }
 
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
       recomputeSeparation();
-      sortMeans();
+      partialSort();
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
@@ -173,12 +158,19 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         // Find closest center, and distance to two closest centers
         double max1 = curSim, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 2 * (upperBound + sa);
-        for(int i = 0; i < k - 1; i++) {
+        // double r = 1 - FastMath.pow2(2 * (upperBound + sa)); // Our cdist are
+        double r = curSim; // scaled 0.5
+        // System.out.println();
+        // System.out.println(cur + " radius : " + r);
+        // System.out.println(Arrays.toString(eRadius[cur]));
+        int maxJ = findJ(it, r);
+        // System.out.println("maxJ : " + maxJ);
+        int pruned = k - 1 - maxJ;
+        if(pruned > 0) {
+          // System.out.println("pruned " + pruned);
+        }
+        for(int i = 0; i < maxJ; i++) {
           int c = cnum[cur][i];
-          if(cdist[cur][c] > r) {
-            break;
-          }
           double sim = similarity(fv, means[c]);
           if(sim > max1) {
             maxIndex = c;
@@ -202,6 +194,114 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
       // printAssignments();
       // assert noAssignmentWrong();
       return changed;
+    }
+
+    /**
+     * Finds the index of the first
+     * 
+     * @param it
+     * @param r
+     * @return
+     */
+    private int findJ(DBIDIter it, double r) {
+      int cur = assignment.intValue(it);
+      double[] curE = eRadius[cur];
+      if(r <= curE[curE.length - 1]) {
+        return k - 1;
+      }
+      int ind = 0;
+      while(ind < curE.length) {
+        if(r >= curE[ind++]) {
+          break;
+        }
+      }
+      // System.out.println("ind : " + ind);
+      return Math.min((int) FastMath.twoPow(ind + 1) + 2, k - 1);
+    }
+
+    protected void partialSort() {
+      for(int j = 0; j < k; j++) {
+        if(k <= 2) {
+          eRadius[j][0] = cdist[j][cnum[j][0]];
+          return;
+        }
+        int right = cnum[j].length - 1;
+        int annulusInd = eRadius[j].length - 1;
+        int amount = (int) FastMath.twoPow(annulusInd + 1) - 2;
+        selectSmallest(cnum[j], csim[j], right, amount);
+        eRadius[j][annulusInd] = maxExceptJ(cnum[j], csim[j], j, amount, right);
+        amount = (amount - 2) / 2;
+        right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+
+        while(annulusInd-- >= 1) {
+          selectSmallest(cnum[j], csim[j], right, amount);
+          eRadius[j][annulusInd] = maxExceptJ(cnum[j], csim[j], j, amount, right);
+          amount = (amount - 2) / 2;
+          right = (int) FastMath.twoPow(annulusInd + 1) + 1;
+        }
+
+        eRadius[j][0] = maxExceptJ(cnum[j], csim[j], j, 0, 1);
+      }
+    }
+
+    private double maxExceptJ(int[] indices, double[] values, int j, int left, int right) {
+      double min = values[indices[left]];
+      for(int i = left + 1; i <= right; i++) {
+        int index = indices[i];
+        if(index == j) {
+          continue;
+        }
+        if(values[index] < min) {
+          min = values[index];
+        }
+      }
+      return 1 + FastMath.pow2((sep[j] - distanceFromSimilarity(min)) / 2);
+    }
+
+    private void selectSmallest(int[] indices, double values[], int right, int amount) {
+      int left = 0;
+      int goalIndex = amount - 1;
+      while(true) {
+        if(left >= right) {
+          return;
+        }
+
+        int pivotIndex = left + (int) (Math.random() * (right - left));
+        pivotIndex = partitionBiggestFirst(indices, values, left, right, pivotIndex);
+
+        if(pivotIndex == goalIndex) {
+          return;
+        }
+
+        if(pivotIndex < goalIndex) {
+          right = pivotIndex - 1;
+        }
+        else {
+          left = pivotIndex + 1;
+        }
+      }
+    }
+
+    private int partitionBiggestFirst(int[] indices, double[] values, int left, int right, int pivotIndex) {
+      double pivotValue = values[indices[pivotIndex]];
+      swap(indices, pivotIndex, right);
+      int storeIndex = left;
+      for(int i = left; i < right; i++) {
+        if(values[indices[i]] > pivotValue) {
+          swap(indices, storeIndex++, i);
+        }
+      }
+      swap(indices, right, storeIndex);
+      return storeIndex;
+    }
+
+    /**
+     * Swaps the elements arr[ind1] and arr[ind2];
+     */
+    private void swap(int[] arr, int ind1, int ind2) {
+      int val1 = arr[ind1];
+      arr[ind1] = arr[ind2];
+      arr[ind2] = val1;
     }
 
     protected void recomputeSeparation() {
@@ -240,8 +340,8 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
   public static class Par<V extends NumberVector> extends HamerlySphericalKMeans.Par<V> {
 
     @Override
-    public ExponionSphericalKMeans<V> make() {
-      return new ExponionSphericalKMeans<>(k, maxiter, initializer, varstat);
+    public ExponionPartialSortSphericalKMeans<V> make() {
+      return new ExponionPartialSortSphericalKMeans<>(k, maxiter, initializer, varstat);
     }
   }
 }

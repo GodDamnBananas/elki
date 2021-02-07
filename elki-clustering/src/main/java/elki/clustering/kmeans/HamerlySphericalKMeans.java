@@ -168,14 +168,6 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       return assignToNearestCluster();
     }
 
-    protected void printAssignments() {
-      System.out.print("[");
-      for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
-        System.out.print(assignment.intValue(it) + ", ");
-      }
-      System.out.println("]");
-    }
-
     /**
      * Maximum distance moved.
      * <p>
@@ -278,7 +270,6 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         final double lowerBound = lower.doubleValue(it);
         double upperBound = upper.doubleValue(it);
         if(upperBound <= lowerBound || upperBound <= sa) {
-          // test1a++;
           continue;
         }
         // Update the upper bound
@@ -288,7 +279,6 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         upperBound = curDist;
         upper.putDouble(it, upperBound);
         if(upperBound <= lowerBound || upperBound <= sa) {
-          // test2a++;
           continue;
         }
         // Find closest center, and distance to two closest centers
@@ -316,11 +306,9 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
           ++changed;
           upper.putDouble(it, max1 == curSim ? upperBound : distanceFromSimilarity(max1));
         }
-        // lower.putDouble(it, distanceFromSimilarity(max2));
         lower.putDouble(it, max2 == curSim ? upperBound : distanceFromSimilarity(max2));
       }
       // assert noAssignmentWrong();
-      // printAssignments();
       return changed;
     }
 
