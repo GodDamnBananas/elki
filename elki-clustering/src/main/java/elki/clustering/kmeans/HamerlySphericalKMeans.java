@@ -109,6 +109,8 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
      */
     double[] sep;
 
+    double[] sepSim;
+
     double[] movedDistances;
 
     /**
@@ -135,6 +137,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       sums = new double[k][dim];
       newmeans = new double[k][dim];
       sep = new double[k];
+      sepSim = new double[k];
       movedDistances = new double[k];
       // assert normalized();
     }
@@ -266,10 +269,9 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
         // Compute the current bound:
-        final double sa = sep[cur];
         final double lowerBound = lower.doubleValue(it);
         double upperBound = upper.doubleValue(it);
-        if(upperBound <= lowerBound || upperBound <= sa) {
+        if(upperBound <= lowerBound || upperBound <= sep[cur]) {
           continue;
         }
         // Update the upper bound
@@ -278,7 +280,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         double curDist = distanceFromSimilarity(curSim);
         upperBound = curDist;
         upper.putDouble(it, upperBound);
-        if(upperBound <= lowerBound || upperBound <= sa) {
+        if(curSim >= sepSim[cur] || upperBound <= lowerBound) {
           continue;
         }
         // Find closest center, and distance to two closest centers
@@ -377,6 +379,8 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         double[] m1 = means[i];
         for(int j = 0; j < i; j++) {
           double curSim = similarity(m1, means[j]);
+          sepSim[i] = (curSim > sep[i]) ? curSim : sep[i];
+          sepSim[j] = (curSim > sep[j]) ? curSim : sep[j];
           sep[i] = (curSim > sep[i]) ? curSim : sep[i];
           sep[j] = (curSim > sep[j]) ? curSim : sep[j];
         }
@@ -384,6 +388,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
       // Now translate to Euclidian Distance
       for(int i = 0; i < k; i++) {
         sep[i] = .5 * distanceFromSimilarity(sep[i]);
+        sepSim[i] = (sepSim[i] + 3) * 1. / 4.;
       }
     }
 
