@@ -96,6 +96,8 @@ public class KMeansPlusPlus<O> extends AbstractKMeansInitialization implements K
    * @param <T> Object type handled
    */
   protected abstract static class Instance<T> {
+    boolean isSquared;
+
     /**
      * Object IDs
      */
@@ -122,7 +124,7 @@ public class KMeansPlusPlus<O> extends AbstractKMeansInitialization implements K
      * @param ids IDs to process
      * @param rnd Random generator
      */
-    public Instance(DBIDs ids, RandomFactory rnd) {
+    public Instance(DBIDs ids, RandomFactory rnd, boolean isSquared) {
       this.ids = ids;
       this.random = rnd.getSingleThreadedRandom();
       this.weights = DataStoreUtil.makeDoubleStorage(ids, DataStoreFactory.HINT_HOT | DataStoreFactory.HINT_TEMP, 0.);
@@ -211,7 +213,7 @@ public class KMeansPlusPlus<O> extends AbstractKMeansInitialization implements K
      * @param rnd Random generator
      */
     public NumberVectorInstance(Relation<? extends NumberVector> relation, NumberVectorDistance<?> distance, RandomFactory rnd) {
-      super(relation.getDBIDs(), rnd);
+      super(relation.getDBIDs(), rnd, distance.isSquared());
       this.distance = distance;
       this.relation = relation;
     }
@@ -236,7 +238,8 @@ public class KMeansPlusPlus<O> extends AbstractKMeansInitialization implements K
     @Override
     protected double distance(NumberVector a, DBIDRef b) {
       ++diststat;
-      return distance.distance(a, relation.get(b));
+      double dist = distance.distance(a, relation.get(b));
+      return isSquared ? dist : dist * dist;
     }
 
     /**
@@ -291,7 +294,7 @@ public class KMeansPlusPlus<O> extends AbstractKMeansInitialization implements K
     DistanceQuery<?> distQ;
 
     public MedoidsInstance(DBIDs ids, DistanceQuery<?> distQ, RandomFactory rnd) {
-      super(ids, rnd);
+      super(ids, rnd, true);
       this.distQ = distQ;
     }
 
