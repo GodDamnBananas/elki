@@ -150,12 +150,8 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         final int cur = assignment.intValue(it);
         // Compute the current bound:
         final double lowerBound = lower.doubleValue(it);
-        final double sa = sep[cur];
         double upperBound = upper.doubleValue(it);
-        if(upperBound <= lowerBound) {
-          continue;
-        }
-        if(upperBound <= sa) {
+        if(upperBound <= lowerBound || upperBound <= sep[cur]) {
           continue;
         }
         // Update the upper bound
@@ -164,16 +160,13 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         double curDist = distanceFromSimilarity(curSim);
         upperBound = curDist;
         upper.putDouble(it, upperBound);
-        if(upperBound <= lowerBound) {
-          continue;
-        }
-        if(upperBound <= sa) {
+        if(curSim >= sepSim[cur] || upperBound <= lowerBound) {
           continue;
         }
         // Find closest center, and distance to two closest centers
         double max1 = curSim, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
-        double r = 2 * (upperBound + sa);
+        double r = 2 * (upperBound + sep[cur]);
         for(int i = 0; i < k - 1; i++) {
           int c = cnum[cur][i];
           if(cdist[cur][c] > r) {
@@ -200,25 +193,8 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         lower.putDouble(it, max2 == curSim ? upperBound : distanceFromSimilarity(max2));
       }
       // printAssignments();
-      // assert noAssignmentWrong();
+      assert noAssignmentWrong();
       return changed;
-    }
-
-    protected void recomputeSeparation() {
-      final int k = means.length;
-      assert sep.length == k;
-      Arrays.fill(sep, Double.POSITIVE_INFINITY);
-      for(int i = 1; i < k; i++) {
-        double[] mi = means[i];
-        for(int j = 0; j < i; j++) {
-          double sim = similarity(mi, means[j]);
-          csim[i][j] = csim[j][i] = sim;
-          double halfd = 0.5 * distanceFromSimilarity(sim);
-          cdist[i][j] = cdist[j][i] = halfd;
-          sep[i] = (halfd < sep[i]) ? halfd : sep[i];
-          sep[j] = (halfd < sep[j]) ? halfd : sep[j];
-        }
-      }
     }
 
     @Override

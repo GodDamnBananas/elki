@@ -50,7 +50,6 @@ elki.clustering.kmeans.ElkanSphericalKMeans
 elki.clustering.kmeans.ElkanUnoptimizedSphericalKMeans
 elki.clustering.kmeans.HamerlySphericalKMeans
 elki.clustering.kmeans.HamerlyUnoptimizedSphericalKMeans
-elki.clustering.kmeans.HamerlySphericalKMeans2
 elki.clustering.kmeans.ExponionPartialSortKMeans
 elki.clustering.kmeans.ExponionPartialSortUnoptimizedSphericalKMeans
 elki.clustering.kmeans.ExponionSphericalKMeans

@@ -264,7 +264,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
     @Override
     protected int assignToNearestCluster() {
       assert (k == means.length);
-      recomputeSeperation(means, sep);
+      recomputeSeparation();
       int changed = 0;
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         final int cur = assignment.intValue(it);
@@ -280,9 +280,12 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         double curDist = distanceFromSimilarity(curSim);
         upperBound = curDist;
         upper.putDouble(it, upperBound);
-        if(curSim >= sepSim[cur] || upperBound <= lowerBound) {
-          continue;
-        }
+        // if(curDist >= sep[cur] || upperBound <= lowerBound) {
+        // continue;
+        // }
+        // if(curSim >= sepSim[cur] || upperBound <= lowerBound) {
+        // continue;
+        // }
         // Find closest center, and distance to two closest centers
         double max1 = curSim, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
@@ -370,7 +373,7 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
      * @param means Means
      * @param sep Output array of separation (half-sqrt scaled)
      */
-    protected void recomputeSeperation(double[][] means, double[] sep) {
+    protected void recomputeSeparation() {
       final int k = means.length;
       assert sep.length == k;
       Arrays.fill(sep, Double.NEGATIVE_INFINITY);
@@ -379,15 +382,13 @@ public class HamerlySphericalKMeans<V extends NumberVector> extends AbstractKMea
         double[] m1 = means[i];
         for(int j = 0; j < i; j++) {
           double curSim = similarity(m1, means[j]);
-          sepSim[i] = (curSim > sep[i]) ? curSim : sep[i];
-          sepSim[j] = (curSim > sep[j]) ? curSim : sep[j];
-          sep[i] = (curSim > sep[i]) ? curSim : sep[i];
-          sep[j] = (curSim > sep[j]) ? curSim : sep[j];
+          sepSim[i] = (curSim > sepSim[i]) ? curSim : sepSim[i];
+          sepSim[j] = (curSim > sepSim[j]) ? curSim : sepSim[j];
         }
       }
       // Now translate to Euclidian Distance
       for(int i = 0; i < k; i++) {
-        sep[i] = .5 * distanceFromSimilarity(sep[i]);
+        sep[i] = .5 * distanceFromSimilarity(sepSim[i]);
         sepSim[i] = (sepSim[i] + 3) * 1. / 4.;
       }
     }
