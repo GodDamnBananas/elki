@@ -64,7 +64,8 @@ public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
 
   @Override
   public double distance(NumberVector o1, NumberVector o2) {
-    return FastMath.sqrt(Math.max(0, 1 - DotProduct.dot(o1, o2)));
+    double dotproduct = DotProduct.dot(o1, o2);
+    return dotproduct >= 1 ? 0 : FastMath.sqrt(1 - dotproduct);
   }
 
   /**
