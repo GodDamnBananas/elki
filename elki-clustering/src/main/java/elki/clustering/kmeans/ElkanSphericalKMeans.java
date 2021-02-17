@@ -257,6 +257,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           if(u <= l[j]) { // #3b
             continue;
           }
+          
           double sim = similarity(fv, means[j]);
           double dist = distanceFromSimilarity(sim);
           l[j] = dist;
@@ -349,6 +350,8 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     protected void updateBounds(double[] move) {
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         upper.increment(it, move[assignment.intValue(it)]);
+        if(upper.doubleValue(it) >= 1) {
+        }
         VMath.minusEquals(lower.get(it), move);
       }
     }

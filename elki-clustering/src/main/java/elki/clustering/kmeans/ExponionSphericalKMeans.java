@@ -167,6 +167,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         double max1 = curSim, max2 = Double.NEGATIVE_INFINITY;
         int maxIndex = cur;
         double r = 2 * (upperBound + sep[cur]);
+
         for(int i = 0; i < k - 1; i++) {
           int c = cnum[cur][i];
           if(cdist[cur][c] > r) {
@@ -193,7 +194,7 @@ public class ExponionSphericalKMeans<V extends NumberVector> extends HamerlySphe
         lower.putDouble(it, max2 == curSim ? upperBound : distanceFromSimilarity(max2));
       }
       // printAssignments();
-      assert noAssignmentWrong();
+      // assert noAssignmentWrong();
       return changed;
     }
 
