@@ -33,7 +33,7 @@ import elki.database.datastore.WritableDataStore;
 import elki.database.datastore.WritableDoubleDataStore;
 import elki.database.ids.DBIDIter;
 import elki.database.relation.Relation;
-import elki.distance.UnitLengthEuclidianDistance;
+import elki.distance.UnitLengthSphericalDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
 import elki.math.linearalgebra.VMath;
@@ -90,7 +90,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
    * @param varstat Compute the variance statistic
    */
   public ElkanSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
+    super(UnitLengthSphericalDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -149,7 +149,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
      * @param means Initial means
      */
     public Instance(Relation<? extends NumberVector> relation, double[][] means) {
-      super(relation, UnitLengthEuclidianDistance.STATIC, means);
+      super(relation, UnitLengthSphericalDistance.STATIC, means);
       upper = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, Double.POSITIVE_INFINITY);
       lower = DataStoreUtil.makeStorage(relation.getDBIDs(), DataStoreFactory.HINT_TEMP | DataStoreFactory.HINT_HOT, double[].class);
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
@@ -183,7 +183,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
      */
     protected void meansFromSums(double[][] dst, double[][] sums) {
       for(int i = 0; i < k; i++) {
-        dst[i] = UnitLengthEuclidianDistance.normalize(sums[i]);
+        dst[i] = UnitLengthSphericalDistance.normalize(sums[i]);
       }
     }
 
@@ -231,8 +231,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         if(u <= sep[orig]) {
           continue;
         }
-        boolean recomputeSimilarity = true; // Elkan's r(x)
-        boolean recomputeDistance = true;
+        boolean recompute = true; // Elkan's r(x)
         double curSim = .0;
         NumberVector fv = relation.get(it);
         double[] l = lower.get(it);
@@ -242,34 +241,22 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           if(orig == j || u <= l[j] || u <= cdist[cur][j]) {
             continue; // Condition #3 i-iii not satisfied
           }
-          if(recomputeSimilarity) {
+          if(recompute) {
             curSim = similarity(fv, means[cur]);
-            recomputeSimilarity = false; // Once only
-          }
-          if(curSim >= csim[cur][j]) {
-            continue;
-          }
-          if(recomputeDistance) { // Need to update bound? #3a
             u = distanceFromSimilarity(curSim);
             upper.putDouble(it, u);
-            recomputeDistance = false; // Once only
+            recompute = false; // Once only
+            if(u <= l[j] || curSim >= csim[cur][j]) {
+              continue;
+            }
           }
-          if(u <= l[j]) { // #3b
-            continue;
-          }
-          
           double sim = similarity(fv, means[j]);
-          double dist = distanceFromSimilarity(sim);
-          l[j] = dist;
+          l[j] = distanceFromSimilarity(sim);
           if(sim > curSim) {
             cur = j;
             curSim = sim;
-            u = dist;
+            u = l[j];
           }
-        }
-        if(recomputeDistance && !recomputeSimilarity) {
-          u = distanceFromSimilarity(curSim);
-          upper.putDouble(it, u);
         }
         // Object is to be reassigned.
         if(cur != orig) {
@@ -329,8 +316,7 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
         }
       }
       LOG.error("wrong assignments : " + changed);
-      // return changed == 0;
-      return true;
+      return changed == 0;
     }
 
     protected double similarity(NumberVector vec1, double[] vec2) {
@@ -350,8 +336,6 @@ public class ElkanSphericalKMeans<V extends NumberVector> extends AbstractKMeans
     protected void updateBounds(double[] move) {
       for(DBIDIter it = relation.iterDBIDs(); it.valid(); it.advance()) {
         upper.increment(it, move[assignment.intValue(it)]);
-        if(upper.doubleValue(it) >= 1) {
-        }
         VMath.minusEquals(lower.get(it), move);
       }
     }

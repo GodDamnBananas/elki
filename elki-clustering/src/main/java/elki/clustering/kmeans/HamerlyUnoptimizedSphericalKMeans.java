@@ -26,7 +26,7 @@ import elki.data.NumberVector;
 import elki.data.model.KMeansModel;
 import elki.database.relation.Relation;
 import elki.distance.NumberVectorDistance;
-import elki.distance.UnitLengthEuclidianDistance;
+import elki.distance.UnitLengthSphericalDistance;
 import elki.logging.Logging;
 import elki.utilities.optionhandling.parameterization.Parameterization;
 
@@ -35,7 +35,7 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
  * This version utilizes a distance Function that uses the dot
  * product for vectors of unit length and normalizes the means to unit length.
  * For more information, see
- * {@link UnitLengthEuclidianDistance}
+ * {@link UnitLengthSphericalDistance}
  * 
  * @author Alexander Voﬂ
  *
@@ -48,7 +48,7 @@ public class HamerlyUnoptimizedSphericalKMeans<V extends NumberVector> extends H
   private static final Logging LOG = Logging.getLogger(HamerlyUnoptimizedSphericalKMeans.class);
 
   public HamerlyUnoptimizedSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer, varstat);
+    super(UnitLengthSphericalDistance.STATIC, k, maxiter, initializer, varstat);
   }
 
   @Override
@@ -76,7 +76,7 @@ public class HamerlyUnoptimizedSphericalKMeans<V extends NumberVector> extends H
     @Override
     protected void meansFromSums(double[][] dst, double[][] sums) {
       for(int i = 0; i < k; i++) {
-        dst[i] = UnitLengthEuclidianDistance.normalize(sums[i]);
+        dst[i] = UnitLengthSphericalDistance.normalize(sums[i]);
       }
     }
 

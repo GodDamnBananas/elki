@@ -30,7 +30,7 @@ import elki.database.ids.DBIDIter;
 import elki.database.ids.DBIDs;
 import elki.database.relation.Relation;
 import elki.distance.NumberVectorDistance;
-import elki.distance.UnitLengthEuclidianDistance;
+import elki.distance.UnitLengthSphericalDistance;
 import elki.logging.Logging;
 import elki.utilities.optionhandling.parameterization.Parameterization;
 
@@ -40,7 +40,7 @@ import elki.utilities.optionhandling.parameterization.Parameterization;
  * (independently). This version utilizes a distance Function that uses the dot
  * product for vectors of unit length and normalizes the means to unit length.
  * For more information, see
- * {@link UnitLengthEuclidianDistance}
+ * {@link UnitLengthSphericalDistance}
  * <p>
  * Reference:
  * <p>
@@ -69,7 +69,7 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
   protected boolean varstat = true;
 
   public LloydUnoptimizedSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
+    super(UnitLengthSphericalDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -123,7 +123,7 @@ public class LloydUnoptimizedSphericalKMeans<V extends NumberVector> extends Llo
           plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
-        newMeans[i] = UnitLengthEuclidianDistance.normalize(sum);
+        newMeans[i] = UnitLengthSphericalDistance.normalize(sum);
       }
       return newMeans;
     }

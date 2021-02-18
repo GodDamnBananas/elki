@@ -32,7 +32,7 @@ import elki.database.ids.DBIDs;
 import elki.database.ids.ModifiableDBIDs;
 import elki.database.relation.Relation;
 import elki.distance.NumberVectorDistance;
-import elki.distance.UnitLengthEuclidianDistance;
+import elki.distance.UnitLengthSphericalDistance;
 import elki.logging.Logging;
 import elki.math.DotProduct;
 import elki.utilities.optionhandling.parameterization.Parameterization;
@@ -68,7 +68,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
   protected boolean varstat = true;
 
   public LloydSphericalKMeans(int k, int maxiter, KMeansInitialization initializer, boolean varstat) {
-    super(UnitLengthEuclidianDistance.STATIC, k, maxiter, initializer);
+    super(UnitLengthSphericalDistance.STATIC, k, maxiter, initializer);
     this.varstat = varstat;
   }
 
@@ -166,7 +166,7 @@ public class LloydSphericalKMeans<V extends NumberVector> extends AbstractKMeans
           plusEquals(sum, relation.get(iter));
         }
         // normalize to unit length
-        newMeans[i] = UnitLengthEuclidianDistance.normalize(sum);
+        newMeans[i] = UnitLengthSphericalDistance.normalize(sum);
       }
       return newMeans;
     }

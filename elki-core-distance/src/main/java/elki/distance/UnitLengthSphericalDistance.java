@@ -40,12 +40,12 @@ import net.jafama.FastMath;
  * @author Alexander Voﬂ
  *
  */
-public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
+public class UnitLengthSphericalDistance extends AbstractNumberVectorDistance {
 
   /**
    * Static instance. Use this!
    */
-  public static final UnitLengthEuclidianDistance STATIC = new UnitLengthEuclidianDistance();
+  public static final UnitLengthSphericalDistance STATIC = new UnitLengthSphericalDistance();
 
   /**
    * Constructor - use {@link #STATIC} instead.
@@ -53,7 +53,7 @@ public class UnitLengthEuclidianDistance extends AbstractNumberVectorDistance {
    * @deprecated Use static instance!
    */
   @Deprecated
-  public UnitLengthEuclidianDistance() {
+  public UnitLengthSphericalDistance() {
     super();
   }
 
